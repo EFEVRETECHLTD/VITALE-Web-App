@@ -3,6 +3,9 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const helmet = require('helmet');
+const compression = require('compression');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 // Import database connection
@@ -11,15 +14,43 @@ const connectDB = require('./config/db');
 // Import seeder
 const { seedDatabase, getInMemoryDB } = require('./utils/seeder');
 
+// Import cache
+const { initRedis, getCache, setCache } = require('./utils/cache');
+
+// Import routes
+const healthRoutes = require('./routes/health');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3002', 'http://192.168.10.110:3000'],
+// Security middleware
+app.use(helmet()); // Set security headers
+app.use(compression()); // Compress responses
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.FRONTEND_URL] // In production, only allow the frontend URL
+    : ['http://localhost:3000', 'http://localhost:3002', 'http://192.168.10.110:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-}));
+  credentials: true,
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
+
+// Body parser middleware
 app.use(express.json({ limit: '10mb' }));
 
 // Request logging middleware
@@ -30,6 +61,7 @@ app.use((req, res, next) => {
 
 // Database variables
 let isMongoConnected = false;
+let isRedisConnected = false;
 let db = {
   users: [],
   protocols: [],
@@ -39,8 +71,8 @@ let db = {
 // Models (will be used if MongoDB is connected)
 let User, Protocol, Review;
 
-// Initialize database
-const initializeDatabase = async () => {
+// Initialize database and cache
+const initializeServices = async () => {
   try {
     // Try to connect to MongoDB
     isMongoConnected = await connectDB();
@@ -57,8 +89,12 @@ const initializeDatabase = async () => {
       await seedDatabase();
       db = getInMemoryDB();
     }
+    
+    // Initialize Redis cache
+    isRedisConnected = await initRedis();
+    
   } catch (error) {
-    console.error('Database initialization error:', error);
+    console.error('Services initialization error:', error);
     process.exit(1);
   }
 };
@@ -278,17 +314,26 @@ app.get('/api/users/me', authenticateToken, async (req, res) => {
 // Get all protocols
 app.get('/api/protocols', async (req, res) => {
   try {
+    // Try to get protocols from cache first
+    const cacheKey = 'all_protocols';
+    if (isRedisConnected) {
+      const cachedProtocols = await getCache(cacheKey);
+      if (cachedProtocols) {
+        console.log('Serving protocols from cache');
+        return res.json(cachedProtocols);
+      }
+    }
+    
+    let protocols;
     if (isMongoConnected) {
       // MongoDB implementation
-      const protocols = await Protocol.find({ status: 'published' })
+      protocols = await Protocol.find({ status: 'published' })
         .populate('author', 'username profileImage')
         .select('-__v');
-      
-      res.json(protocols);
     } else {
       // In-memory implementation
       // Calculate and update ratings for each protocol based on reviews
-      const protocolsWithRatings = db.protocols.map(protocol => {
+      protocols = db.protocols.map(protocol => {
         const protocolReviews = db.reviews.filter(r => r.protocol === protocol.id);
         
         if (protocolReviews.length > 0) {
@@ -309,9 +354,14 @@ app.get('/api/protocols', async (req, res) => {
         
         return protocol;
       });
-      
-      res.json(protocolsWithRatings);
     }
+    
+    // Cache the protocols for 5 minutes
+    if (isRedisConnected) {
+      await setCache(cacheKey, protocols, 300);
+    }
+    
+    res.json(protocols);
   } catch (error) {
     console.error('Get protocols error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -723,9 +773,36 @@ app.put('/api/protocols/:id/reviews/:reviewId', authenticateToken, async (req, r
   }
 });
 
+// Health check route
+app.use('/api/health', healthRoutes);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    message: process.env.NODE_ENV === 'production' 
+      ? 'Internal Server Error' 
+      : err.message 
+  });
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // In production, you might want to exit and let your process manager restart the app
+  // process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // In production, you might want to exit and let your process manager restart the app
+  // process.exit(1);
+});
+
 // Start server
 const startServer = async () => {
-  await initializeDatabase();
+  await initializeServices();
   
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
