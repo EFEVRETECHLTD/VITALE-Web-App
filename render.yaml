@@ -27,7 +27,7 @@ services:
         fromService:
           name: instrument-status-frontend
           type: web
-          property: url
+          property: host
 
   # Frontend service
   - type: web
@@ -42,7 +42,7 @@ services:
         fromService:
           name: instrument-status-api
           type: web
-          property: url
+          property: hostport
 
   # MongoDB service
   - type: pserv
@@ -52,8 +52,8 @@ services:
     envVars:
       - key: MONGODB_URL
         value: mongodb://instrument-status-db:27017/instrument-status
+    plan: standard
     disk:
       name: data
       mountPath: /data/db
-      sizeGB: 10
-    plan: free 
+      sizeGB: 10 
