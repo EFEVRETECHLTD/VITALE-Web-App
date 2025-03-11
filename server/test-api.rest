@@ -1,0 +1,106 @@
+# REST Client file for testing the API
+# You can use this file with the REST Client extension in VS Code
+# or copy these requests to Postman/Insomnia
+
+@baseUrl = http://localhost:3001
+@contentType = application/json
+
+### Register a new user
+POST {{baseUrl}}/api/users/register
+Content-Type: {{contentType}}
+
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "password123",
+  "jobPosition": "Lab Technician"
+}
+
+### Login
+POST {{baseUrl}}/api/users/login
+Content-Type: {{contentType}}
+
+{
+  "username": "testuser",
+  "password": "password123"
+}
+
+### Get user profile (requires authentication)
+# After login, copy the token from the response and paste it below
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer YOUR_TOKEN_HERE
+
+### Get all protocols
+GET {{baseUrl}}/api/protocols
+
+### Get a specific protocol
+# Replace protocol-id with an actual protocol ID
+GET {{baseUrl}}/api/protocols/aczo-tag
+
+### Create a new protocol (requires authentication)
+POST {{baseUrl}}/api/protocols
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "name": "DNA Extraction Protocol",
+  "description": "Standard protocol for extracting DNA from tissue samples",
+  "category": "Extraction",
+  "status": "draft",
+  "imageUrl": "https://example.com/images/dna-extraction.png",
+  "keyFeatures": [
+    "High yield",
+    "PCR ready",
+    "Quick procedure"
+  ],
+  "steps": [
+    {
+      "title": "Sample preparation",
+      "description": "Prepare the tissue sample by cutting into small pieces"
+    },
+    {
+      "title": "Lysis",
+      "description": "Add lysis buffer and incubate at 56°C for 3 hours"
+    },
+    {
+      "title": "Purification",
+      "description": "Purify the DNA using silica columns"
+    }
+  ],
+  "materials": [
+    "Lysis buffer",
+    "Proteinase K",
+    "Silica columns",
+    "Ethanol"
+  ],
+  "equipment": [
+    "Centrifuge",
+    "Heat block",
+    "Micropipettes"
+  ],
+  "visibility": "private"
+}
+
+### Add a review to a protocol (requires authentication)
+# Replace protocol-id with an actual protocol ID
+POST {{baseUrl}}/api/protocols/aczo-tag/reviews
+Content-Type: {{contentType}}
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "rating": 4.5,
+  "title": "Great protocol",
+  "comment": "This protocol worked very well for my samples. The results were consistent and reproducible.",
+  "metrics": {
+    "efficiency": 4.0,
+    "consistency": 5.0,
+    "accuracy": 4.5,
+    "safety": 4.0,
+    "easeOfExecution": 4.0,
+    "scalability": 3.5
+  }
+}
+
+### Get reviews for a protocol
+# Replace protocol-id with an actual protocol ID
+GET {{baseUrl}}/api/protocols/aczo-tag/reviews
