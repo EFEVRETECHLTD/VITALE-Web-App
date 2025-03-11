@@ -17,7 +17,9 @@ services:
       - key: USE_REDIS
         value: false
       - key: MONGODB_URI
-        sync: false
+        fromDatabase:
+          name: instrument-status-db
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
@@ -45,4 +47,4 @@ databases:
   # MongoDB database
   - name: instrument-status-db
     plan: free
-    type: mongodb 
+    databaseType: mongodb 
