@@ -68,3 +68,19 @@ export const InfoIcon = ({ size = 1, color = '#2c82e0', style = {}, ...props }) 
 
 export const HeartIcon = ({ size = 1, color = '#f91f43', style = {}, ...props }) => 
   <Icon path={mdiHeartOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+
+// Add TabIcon component
+export const TabIcon = ({ children, style = {}, ...props }) => (
+  <div 
+    style={{ 
+      display: 'inline-flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      marginRight: '8px',
+      ...style 
+    }} 
+    {...props}
+  >
+    {children}
+  </div>
+);

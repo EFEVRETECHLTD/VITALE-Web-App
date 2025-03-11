@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://192.168.10.110:3000'],
+  origin: ['http://localhost:3000', 'http://localhost:3002', 'http://192.168.10.110:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
@@ -287,7 +287,30 @@ app.get('/api/protocols', async (req, res) => {
       res.json(protocols);
     } else {
       // In-memory implementation
-      res.json(db.protocols);
+      // Calculate and update ratings for each protocol based on reviews
+      const protocolsWithRatings = db.protocols.map(protocol => {
+        const protocolReviews = db.reviews.filter(r => r.protocol === protocol.id);
+        
+        if (protocolReviews.length > 0) {
+          // Calculate overall rating
+          const totalRating = protocolReviews.reduce((sum, r) => sum + r.rating, 0);
+          protocol.rating = (totalRating / protocolReviews.length).toFixed(1);
+          
+          // Calculate metrics ratings
+          const metricsFields = ['efficiency', 'consistency', 'accuracy', 'safety', 'easeOfExecution', 'scalability'];
+          metricsFields.forEach(field => {
+            const reviewsWithMetric = protocolReviews.filter(r => r.metrics && r.metrics[field]);
+            if (reviewsWithMetric.length > 0) {
+              const totalMetric = reviewsWithMetric.reduce((sum, r) => sum + r.metrics[field], 0);
+              protocol[field] = (totalMetric / reviewsWithMetric.length).toFixed(1);
+            }
+          });
+        }
+        
+        return protocol;
+      });
+      
+      res.json(protocolsWithRatings);
     }
   } catch (error) {
     console.error('Get protocols error:', error);
@@ -696,26 +719,6 @@ app.put('/api/protocols/:id/reviews/:reviewId', authenticateToken, async (req, r
     }
   } catch (error) {
     console.error('Error updating review:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Get all protocols (public route)
-app.get('/api/protocols', async (req, res) => {
-  try {
-    if (isMongoConnected) {
-      // MongoDB implementation
-      const protocols = await Protocol.find({ status: 'published' })
-        .populate('author', 'username profileImage')
-        .select('-__v');
-      
-      res.json(protocols);
-    } else {
-      // In-memory implementation
-      res.json(db.protocols);
-    }
-  } catch (error) {
-    console.error('Get protocols error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

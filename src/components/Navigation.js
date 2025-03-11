@@ -222,9 +222,8 @@ const NavLinks = styled.ul`
 `;
 
 const MenuToggleItem = styled.li`
-  margin: 5px 0;
+  margin: 0;
   position: relative;
-  margin-bottom: 15px;
   
   a {
     display: flex;
@@ -233,7 +232,6 @@ const MenuToggleItem = styled.li`
     color: ${props => props.theme?.text?.secondary ?? '#757575'};
     text-decoration: none;
     transition: all 0.3s ease;
-    border-bottom: 1px solid ${props => props.theme?.border?.light ?? '#E0E0E0'};
     background-color: transparent;
     
     &:hover {

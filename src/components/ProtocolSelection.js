@@ -14,11 +14,15 @@ import {
     CloseIcon,
     PlayIcon,
     EditIcon,
-    CheckCircleIcon
+    CheckCircleIcon,
+    TabIcon
 } from './icons';
 import ProtocolCard from './ProtocolCard';
 import { AuthContext } from '../contexts/AuthContext';
-// import { protocols } from '../data/protocols'; // We'll replace this with API calls
+import RangeSliderInput from 'react-range-slider-input';
+import 'react-range-slider-input/dist/style.css';
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
 
 const ProtocolSelection = () => {
     const navigate = useNavigate();
@@ -79,7 +83,19 @@ const ProtocolSelection = () => {
         scalability: { min: 0, max: 5 }
     });
     
-    const [activeTab, setActiveTab] = useState('all'); // 'all', 'drafted', 'saved', 'published'
+    // First, let's update the activeTab state to allow null value for "all protocols"
+    const [activeTab, setActiveTab] = useState(null); // null means 'all'
+
+    // Then, let's update the handleTabClick function to toggle selection
+    const handleTabClick = (tabName) => {
+        // If the tab is already active, deselect it (set to null)
+        if (activeTab === tabName) {
+            setActiveTab(null);
+        } else {
+            setActiveTab(tabName);
+        }
+    };
+
     const [sortBy, setSortBy] = useState('name'); // 'name', 'author', 'date', 'rating'
     const [sortDirection, setSortDirection] = useState('asc');
     const [currentPage, setCurrentPage] = useState(1);
@@ -112,7 +128,7 @@ const ProtocolSelection = () => {
             if (activeTab === 'drafted') return p.status === 'draft';
             if (activeTab === 'saved') return p.status === 'saved';
             if (activeTab === 'published') return p.status === 'published';
-            return true; // 'all' tab
+            return true; // null tab (show all)
         })
         .filter(p => selectedCategory === 'all' || p.category === selectedCategory)
         .filter(p => {
@@ -455,190 +471,70 @@ const ProtocolSelection = () => {
         const min = isDisplayOnly ? minValue : (range ? range.min : 0);
         const max = isDisplayOnly ? maxValue : (range ? range.max : 5);
         
-        // Create a ref for the slider container
-        const sliderRef = React.useRef(null);
+        // Use local state for smooth dragging
+        const [localValues, setLocalValues] = useState([min, max]);
         
-        // For interactive sliders
-        const handleTrackClick = (e) => {
+        // Update local state when props change
+        useEffect(() => {
+            setLocalValues([min, max]);
+        }, [min, max]);
+        
+        // Handle range change during dragging (updates local state only)
+        const handleDragging = (values) => {
+            if (!isDisplayOnly) {
+                setLocalValues(values);
+            }
+        };
+        
+        // Handle range change when dragging ends (updates parent state)
+        const handleAfterChange = (values) => {
             if (!isDisplayOnly && onChange) {
-                // Get the click position relative to the slider track
-                const rect = e.currentTarget.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const percentage = clickX / rect.width;
-                const newValue = Math.max(0, Math.min(5, Math.round(percentage * 5 * 2) / 2));
-                
-                // Determine if we should move min or max handle
-                if (Math.abs(newValue - min) <= Math.abs(newValue - max)) {
-                    onChange(category, 'min', Math.min(newValue, max - 0.5));
-                } else {
-                    onChange(category, 'max', Math.max(newValue, min + 0.5));
+                if (values[0] !== min) {
+                    onChange(category, 'min', values[0]);
                 }
-            }
-        };
-        
-        // Handle min handle drag
-        const handleMinHandleDrag = (e) => {
-            if (!isDisplayOnly && onChange && sliderRef.current) {
-                const rect = sliderRef.current.getBoundingClientRect();
-                const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-                const percentage = clickX / rect.width;
-                const newValue = Math.max(0, Math.min(max - 0.5, Math.round(percentage * 5 * 2) / 2));
-                
-                // Update the handle position immediately for smoother dragging
-                const minHandle = sliderRef.current.querySelector('.min-handle');
-                if (minHandle) {
-                    minHandle.style.left = `calc(${(newValue / 5) * 100}% - 8px)`;
+                if (values[1] !== max) {
+                    onChange(category, 'max', values[1]);
                 }
-                
-                onChange(category, 'min', newValue);
-            }
-        };
-        
-        // Handle max handle drag
-        const handleMaxHandleDrag = (e) => {
-            if (!isDisplayOnly && onChange && sliderRef.current) {
-                const rect = sliderRef.current.getBoundingClientRect();
-                const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-                const percentage = clickX / rect.width;
-                const newValue = Math.max(min + 0.5, Math.min(5, Math.round(percentage * 5 * 2) / 2));
-                
-                // Update the handle position immediately for smoother dragging
-                const maxHandle = sliderRef.current.querySelector('.max-handle');
-                if (maxHandle) {
-                    maxHandle.style.left = `calc(${(newValue / 5) * 100}% - 8px)`;
-                }
-                
-                onChange(category, 'max', newValue);
-            }
-        };
-        
-        // Mouse down handlers to initiate dragging
-        const handleMinMouseDown = (e) => {
-            if (!isDisplayOnly) {
-                e.stopPropagation();
-                document.addEventListener('mousemove', handleMinHandleDrag);
-                document.addEventListener('mouseup', () => {
-                    document.removeEventListener('mousemove', handleMinHandleDrag);
-                }, { once: true });
-            }
-        };
-        
-        const handleMaxMouseDown = (e) => {
-            if (!isDisplayOnly) {
-                e.stopPropagation();
-                document.addEventListener('mousemove', handleMaxHandleDrag);
-                document.addEventListener('mouseup', () => {
-                    document.removeEventListener('mousemove', handleMaxHandleDrag);
-                }, { once: true });
             }
         };
 
         return (
-            <div style={{ marginTop: '4px', marginBottom: '10px', width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                    <div style={{ fontSize: '10px', color: '#757575' }}>{min}</div>
-                    <div style={{ fontSize: '10px', color: '#757575' }}>{max}</div>
+            <div style={{ marginTop: '4px', marginBottom: '16px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#757575' }}>{localValues[0]}</div>
+                    <div style={{ fontSize: '12px', color: '#757575' }}>{localValues[1]}</div>
                 </div>
-                <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    position: 'relative',
-                    height: '20px',
-                    width: '100%'
-                }}>
-                    {/* Slider track */}
-                    <div style={{ 
-                        position: 'absolute',
-                        height: '4px',
-                        width: '100%',
-                        backgroundColor: '#E0E0E0',
-                        borderRadius: '2px'
-                    }}></div>
-                    
-                    {/* Active range */}
-                    <div style={{ 
-                        position: 'absolute',
-                        height: '4px',
-                        left: `${(min / 5) * 100}%`,
-                        width: `${((max - min) / 5) * 100}%`,
-                        backgroundColor: '#00BCD4',
-                        borderRadius: '2px'
-                    }}></div>
-                    
-                    {/* Min handle */}
-                    <div 
-                        style={{ 
-                            position: 'absolute',
-                            height: '16px',
-                            width: '16px',
-                            left: `calc(${(min / 5) * 100}% - 8px)`,
-                            backgroundColor: 'white',
-                            border: '2px solid #00BCD4',
-                            borderRadius: '50%',
-                            cursor: isDisplayOnly ? 'default' : 'grab',
-                            zIndex: 2,
-                            transition: 'transform 0.1s, box-shadow 0.2s',
-                            transform: 'scale(1)',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                        }}
-                        onMouseDown={handleMinMouseDown}
-                        onMouseOver={(e) => {
-                            if (!isDisplayOnly) {
-                                e.currentTarget.style.transform = 'scale(1.2)';
-                                e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
+                
+                <div style={{ padding: '10px 0' }}>
+                    <Slider
+                        range
+                        min={0}
+                        max={5}
+                        step={0.5}
+                        value={localValues}
+                        onChange={handleDragging}
+                        onAfterChange={handleAfterChange}
+                        disabled={isDisplayOnly}
+                        trackStyle={{ backgroundColor: '#00BCD4', height: 5 }}
+                        railStyle={{ backgroundColor: '#8a8a8a', height: 5 }}
+                        handleStyle={[
+                            {
+                                backgroundColor: '#00BCD4',
+                                border: '3px solid white',
+                                boxShadow: '0 0.125rem 0.5625rem -0.125rem rgba(0, 0, 0, 0.25)',
+                                height: 25,
+                                width: 25,
+                                marginTop: -10,
+                            },
+                            {
+                                backgroundColor: '#00BCD4',
+                                border: '3px solid white',
+                                boxShadow: '0 0.125rem 0.5625rem -0.125rem rgba(0, 0, 0, 0.25)',
+                                height: 25,
+                                width: 25,
+                                marginTop: -10,
                             }
-                        }}
-                        onMouseOut={(e) => {
-                            if (!isDisplayOnly) {
-                                e.currentTarget.style.transform = 'scale(1)';
-                                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
-                            }
-                        }}
-                        className="min-handle"
-                    ></div>
-                    
-                    {/* Max handle */}
-                    <div 
-                        style={{ 
-                            position: 'absolute',
-                            height: '16px',
-                            width: '16px',
-                            left: `calc(${(max / 5) * 100}% - 8px)`,
-                            backgroundColor: 'white',
-                            border: '2px solid #00BCD4',
-                            borderRadius: '50%',
-                            cursor: isDisplayOnly ? 'default' : 'grab',
-                            zIndex: 2,
-                            transition: 'transform 0.1s, box-shadow 0.2s',
-                            transform: 'scale(1)',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                        }}
-                        onMouseDown={handleMaxMouseDown}
-                        onMouseOver={(e) => {
-                            if (!isDisplayOnly) {
-                                e.currentTarget.style.transform = 'scale(1.2)';
-                                e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
-                            }
-                        }}
-                        onMouseOut={(e) => {
-                            if (!isDisplayOnly) {
-                                e.currentTarget.style.transform = 'scale(1)';
-                                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
-                            }
-                        }}
-                        className="max-handle"
-                    ></div>
-                    
-                    {/* Track click handler */}
-                    <div 
-                        style={{ 
-                            position: 'absolute',
-                            height: '20px',
-                            width: '100%',
-                            cursor: isDisplayOnly ? 'default' : 'pointer'
-                        }}
-                        onClick={handleTrackClick}
-                        ref={sliderRef}
+                        ]}
                     />
                 </div>
             </div>
@@ -825,36 +721,47 @@ const ProtocolSelection = () => {
                 </ErrorContainer>
             )}
             
-            <TabsContainer>
-                <Tab 
-                    isActive={activeTab === 'all'} 
-                    onClick={() => setActiveTab('all')}
-                >
-                    All
-                </Tab>
-                <Tab 
-                    isActive={activeTab === 'drafted'} 
-                    onClick={() => setActiveTab('drafted')}
-                >
-                    <ThumbUpIcon size={0.8} color="#757575" /> My Drafted Protocols
-                </Tab>
-                <Tab 
-                    isActive={activeTab === 'saved'} 
-                    onClick={() => setActiveTab('saved')}
-                >
-                    <BookmarkIcon size={0.8} color="#757575" /> My Saved Protocols
-                </Tab>
-                <Tab 
-                    isActive={activeTab === 'published'} 
-                    onClick={() => setActiveTab('published')}
-                >
-                    <BookmarkIcon size={0.8} color="#757575" /> Published Protocols
-                </Tab>
-            </TabsContainer>
-            
             <FiltersAndContentWrapper>
                 <FiltersWrapper>
                     <FiltersSection>
+                        <ProtocolTypeSection>
+                            <ProtocolTypeButtons>
+                                <ProtocolTypeButton 
+                                    active={activeTab === 'drafted'}
+                                    onClick={() => handleTabClick('drafted')}
+                                >
+                                    <TabIcon>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM14 17H7V15H14V17ZM17 13H7V11H17V13ZM17 9H7V7H17V9Z" fill="currentColor"/>
+                                        </svg>
+                                    </TabIcon>
+                                    Drafted Protocols
+                                </ProtocolTypeButton>
+                                <ProtocolTypeButton 
+                                    active={activeTab === 'saved'}
+                                    onClick={() => handleTabClick('saved')}
+                                >
+                                    <TabIcon>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M17 3H7C5.9 3 5 3.9 5 5V21L12 18L19 21V5C19 3.9 18.1 3 17 3Z" fill="currentColor"/>
+                                        </svg>
+                                    </TabIcon>
+                                    Bookmarked Protocols
+                                </ProtocolTypeButton>
+                                <ProtocolTypeButton 
+                                    active={activeTab === 'published'}
+                                    onClick={() => handleTabClick('published')}
+                                >
+                                    <TabIcon>
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M21 5C19.89 4.65 18.67 4.5 17.5 4.5C15.55 4.5 13.45 4.9 12 6C10.55 4.9 8.45 4.5 6.5 4.5C4.55 4.5 2.45 4.9 1 6V20.65C1 20.9 1.25 21.15 1.5 21.15C1.6 21.15 1.65 21.1 1.75 21.1C3.1 20.45 5.05 20 6.5 20C8.45 20 10.55 20.4 12 21.5C13.35 20.65 15.8 20 17.5 20C19.15 20 20.85 20.3 22.25 21.05C22.35 21.1 22.4 21.1 22.5 21.1C22.75 21.1 23 20.85 23 20.6V6C22.4 5.55 21.75 5.25 21 5ZM21 18.5C19.9 18.15 18.7 18 17.5 18C15.8 18 13.35 18.65 12 19.5V8C13.35 7.15 15.8 6.5 17.5 6.5C18.7 6.5 19.9 6.65 21 7V18.5Z" fill="currentColor"/>
+                                        </svg>
+                                    </TabIcon>
+                                    Published Protocols
+                                </ProtocolTypeButton>
+                            </ProtocolTypeButtons>
+                        </ProtocolTypeSection>
+
                         <ScoringTypeSection>
                             <SectionTitle>SCORING TYPE</SectionTitle>
                             <FilterCheckboxes>
@@ -1722,19 +1629,16 @@ const ProtocolSelection = () => {
                                                             {review.user?.role === 'admin' ? 'Lab Director' : 'Lab Technician'}
                                                             <span style={{ margin: '0 0.5rem' }}>•</span>
                                                             <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                {[1, 2, 3, 4, 5].map((star) => {
-                                                                    const score = parseFloat(review.rating || 0);
-                                                                    return (
-                                                                        <StarIcon 
-                                                                            key={star} 
-                                                                            style={{ 
-                                                                                color: star <= score ? "#F9D100" : "#DDD",
-                                                                                fontSize: '1rem',
-                                                                                marginRight: '0.125rem'
-                                                                            }} 
-                                                                        />
-                                                                    );
-                                                                })}
+                                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                                    <StarIcon 
+                                                                        key={star} 
+                                                                        style={{ 
+                                                                            color: star <= review.rating ? "#F9D100" : "#DDD",
+                                                                            fontSize: '1rem',
+                                                                            marginRight: '0.125rem'
+                                                                        }} 
+                                                                    />
+                                                                ))}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -2027,40 +1931,6 @@ const RetryButton = styled.button`
     }
 `;
 
-const TabsContainer = styled.div`
-    display: flex;
-    gap: 0;
-    margin-bottom: 0;
-    padding: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
-    padding-bottom: 0;
-    overflow-x: auto;
-    
-    @media (max-width: 768px) {
-        flex-wrap: nowrap;
-        width: 100%;
-    }
-`;
-
-const Tab = styled.button`
-    padding: ${({ theme }) => theme.spacing?.sm || '0.5rem'} ${({ theme }) => theme.spacing?.md || '1rem'};
-    border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'} ${({ theme }) => theme.borderRadius?.md || '0.5rem'} 0 0;
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
-    background-color: ${({ theme, isActive }) => isActive ? theme.background?.secondary || '#FFFFFF' : 'transparent'};
-    color: ${({ theme, isActive }) => isActive ? theme.primary || '#00BCD4' : theme.text?.secondary || '#757575'};
-    border-bottom: ${({ theme, isActive }) => isActive ? `2px solid ${theme.primary || '#00BCD4'}` : 'none'};
-    transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
-    display: flex;
-    align-items: center;
-    gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
-    white-space: nowrap;
-    margin-right: ${({ theme }) => theme.spacing?.md || '1rem'};
-    
-    &:hover {
-        background-color: ${({ theme, isActive }) => isActive ? theme.background?.secondary || '#FFFFFF' : theme.background?.tertiary || '#EEEEEE'};
-    }
-`;
-
 const FiltersAndContentWrapper = styled.div`
     display: flex;
     flex: 1;
@@ -2087,6 +1957,10 @@ const ContentWrapper = styled.div`
 const FiltersSection = styled.div`
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
     background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+`;
+
+const ProtocolTypeSection = styled.div`
+    margin-bottom: ${({ theme }) => theme.spacing?.md || '1rem'};
 `;
 
 const ScoringTypeSection = styled.div`
@@ -2556,6 +2430,42 @@ const RunProtocolButton = styled.button`
     &:focus {
         outline: none;
         box-shadow: 0 0 0 2px rgba(44, 130, 224, 0.2);
+    }
+`;
+
+// Add these styled components at the end of the file before export default ProtocolSelection;
+const ProtocolTypeButtons = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+`;
+
+const ProtocolTypeButton = styled.button`
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background-color: ${({ active }) => active ? '#E6F7FA' : 'white'};
+    color: ${({ active }) => active ? '#00BCD4' : '#757575'};
+    border: 1px solid ${({ active }) => active ? '#00BCD4' : '#E0E0E0'};
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: ${({ active }) => active ? '0 2px 4px rgba(0, 188, 212, 0.15)' : '0 1px 2px rgba(0,0,0,0.05)'};
+    width: 100%;
+    text-align: left;
+    position: relative;
+    height: 40px;
+    min-width: 200px;
+    
+    &:hover {
+        background-color: ${({ active }) => active ? '#E6F7FA' : '#F5F5F5'};
+    }
+    
+    svg {
+        fill: ${({ active }) => active ? '#00BCD4' : '#757575'};
     }
 `;
 
