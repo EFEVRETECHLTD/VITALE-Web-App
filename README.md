@@ -1,70 +1,123 @@
-# Getting Started with Create React App
+# VITALE Web App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern, responsive web application for instrument status monitoring and protocol management developed by EFEVRE TECH LTD.
 
-## Available Scripts
+![EFEVRE TECH Logo](./public/images/EFEVRE%20TECH%20LOGO.png)
 
-In the project directory, you can run:
+## Overview
 
-### `npm start`
+VITALE Web App is a comprehensive solution for laboratory instrument status monitoring and protocol management. It provides a user-friendly interface for scientists and lab technicians to monitor instrument status in real-time, manage protocols, and collaborate on laboratory procedures.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Features
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+- **Real-time Instrument Status Monitoring**: Track the status of laboratory instruments with real-time updates.
+- **Protocol Library**: Access, create, and manage laboratory protocols in a centralized library.
+- **User Authentication**: Secure login and user management system.
+- **Responsive Design**: Optimized for both desktop and mobile devices.
+- **Modern UI**: Clean, intuitive interface with a collapsible sidebar navigation.
+- **Theme Support**: Robust theming system with fallback values for consistent styling.
 
-### `npm test`
+## Architecture
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+The application follows a modern React architecture with the following components:
 
-### `npm run build`
+- **Frontend**: React.js with styled-components for styling
+- **Backend**: Node.js with Express
+- **Database**: MongoDB (with in-memory option for development)
+- **Authentication**: JWT-based authentication system
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+For more details, see the [ARCHITECTURE.md](./ARCHITECTURE.md) file.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Installation
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Prerequisites
 
-### `npm run eject`
+- Node.js (v14 or higher)
+- npm (v6 or higher)
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Setup
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. Clone the repository:
+   ```
+   git clone https://github.com/EFEVRETECHLTD/VITALE-Web-App.git
+   cd VITALE-Web-App
+   ```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+2. Install dependencies for both frontend and backend:
+   ```
+   npm install
+   cd server
+   npm install
+   cd ..
+   ```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+3. Create a `.env` file in the root directory with the following content:
+   ```
+   REACT_APP_API_URL=http://localhost:3001
+   ```
 
-## Learn More
+4. Create a `.env` file in the server directory with the following content:
+   ```
+   PORT=3001
+   JWT_SECRET=your_jwt_secret
+   MONGODB_URI=your_mongodb_uri_or_leave_empty_for_in_memory_db
+   ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Running the Application
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+You can use the provided PowerShell script to start both the frontend and backend:
 
-### Code Splitting
+```
+powershell -ExecutionPolicy Bypass -File run.ps1
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Or start them separately:
 
-### Analyzing the Bundle Size
+1. Start the backend server:
+   ```
+   cd server
+   npm start
+   ```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+2. In a new terminal, start the frontend:
+   ```
+   npm start
+   ```
 
-### Making a Progressive Web App
+The frontend will be available at http://localhost:3000 and the backend API at http://localhost:3001.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## Development
 
-### Advanced Configuration
+### Project Structure
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+```
+instrument-status-page/
+├── public/                  # Static files
+├── server/                  # Backend server
+│   ├── models/              # Database models
+│   ├── routes/              # API routes
+│   ├── utils/               # Utility functions
+│   └── server.js            # Server entry point
+├── src/
+│   ├── components/          # React components
+│   ├── contexts/            # React contexts
+│   ├── data/                # Static data
+│   ├── App.js               # Main App component
+│   ├── index.js             # Entry point
+│   └── theme.js             # Theme configuration
+└── package.json             # Project dependencies
+```
 
-### Deployment
+### Styling
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+The application uses styled-components with a robust theme system. All theme property accesses include optional chaining and fallback values to ensure the UI remains functional even if theme data is incomplete.
 
-### `npm run build` fails to minify
+## Contributing
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+1. Create a feature branch from the dev branch
+2. Make your changes
+3. Submit a pull request to the dev branch
+
+## License
+
+Copyright 2025 EFEVRE TECH LTD. All rights reserved.
