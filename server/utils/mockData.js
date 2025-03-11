@@ -5,6 +5,7 @@ const mockUsers = [
   {
     id: '1',
     username: 'admin',
+    displayName: 'Alex Morgan',
     email: 'admin@efevre-tech.com',
     password: 'admin123', // Will be hashed before storage
     jobPosition: 'Lab Director',
@@ -15,6 +16,7 @@ const mockUsers = [
   {
     id: '2',
     username: 'scientist',
+    displayName: 'Jordan Smith',
     email: 'scientist@efevre-tech.com',
     password: 'scientist123', // Will be hashed before storage
     jobPosition: 'Senior Scientist',
@@ -25,6 +27,7 @@ const mockUsers = [
   {
     id: '3',
     username: 'technician',
+    displayName: 'Casey Wilson',
     email: 'technician@efevre-tech.com',
     password: 'technician123', // Will be hashed before storage
     jobPosition: 'Lab Technician',

@@ -1,8 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import styled, { ThemeContext } from 'styled-components';
-import { FaSearch, FaFilter, FaChevronDown, FaPlus } from 'react-icons/fa';
-import { BsCheckSquareFill, BsSquare } from 'react-icons/bs';
+import { FaSearch } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ThumbUpIcon, 
@@ -17,10 +16,7 @@ import {
     CheckCircleIcon,
     TabIcon
 } from './icons';
-import ProtocolCard from './ProtocolCard';
 import { AuthContext } from '../contexts/AuthContext';
-import RangeSliderInput from 'react-range-slider-input';
-import 'react-range-slider-input/dist/style.css';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
@@ -119,6 +115,9 @@ const ProtocolSelection = () => {
     const [viewMode, setViewMode] = useState('protocol'); // 'protocol' or 'review'
     const [protocolReviews, setProtocolReviews] = useState([]); // Add a state for protocol reviews
 
+    // Add a new state for the input value
+    const [searchInput, setSearchInput] = useState(searchTerm);
+
     const categories = ['all', ...new Set(protocols.map(p => p.category))];
     
     // Filter protocols based on search term, category, and selected filters
@@ -188,7 +187,11 @@ const ProtocolSelection = () => {
             p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.author.toLowerCase().includes(searchTerm.toLowerCase())
+            (typeof p.author === 'string' ? 
+                p.author.toLowerCase().includes(searchTerm.toLowerCase()) : 
+                (p.author && p.author.username ? 
+                    p.author.username.toLowerCase().includes(searchTerm.toLowerCase()) : 
+                    false))
         );
 
     // Sort protocols
@@ -200,7 +203,9 @@ const ProtocolSelection = () => {
                 comparison = a.name.localeCompare(b.name);
                 break;
             case 'author':
-                comparison = a.author.localeCompare(b.author);
+                const authorA = typeof a.author === 'string' ? a.author : (a.author && a.author.username ? a.author.username : '');
+                const authorB = typeof b.author === 'string' ? b.author : (b.author && b.author.username ? b.author.username : '');
+                comparison = authorA.localeCompare(authorB);
                 break;
             case 'date':
                 comparison = new Date(a.datePublished) - new Date(b.datePublished);
@@ -515,11 +520,11 @@ const ProtocolSelection = () => {
                         onChange={handleDragging}
                         onAfterChange={handleAfterChange}
                         disabled={isDisplayOnly}
-                        trackStyle={{ backgroundColor: '#00BCD4', height: 5 }}
+                        trackStyle={{ backgroundColor: '#3ab2b4', height: 5 }}
                         railStyle={{ backgroundColor: '#8a8a8a', height: 5 }}
                         handleStyle={[
                             {
-                                backgroundColor: '#00BCD4',
+                                backgroundColor: '#3ab2b4',
                                 border: '3px solid white',
                                 boxShadow: '0 0.125rem 0.5625rem -0.125rem rgba(0, 0, 0, 0.25)',
                                 height: 25,
@@ -527,7 +532,7 @@ const ProtocolSelection = () => {
                                 marginTop: -10,
                             },
                             {
-                                backgroundColor: '#00BCD4',
+                                backgroundColor: '#3ab2b4',
                                 border: '3px solid white',
                                 boxShadow: '0 0.125rem 0.5625rem -0.125rem rgba(0, 0, 0, 0.25)',
                                 height: 25,
@@ -684,24 +689,32 @@ const ProtocolSelection = () => {
         }
     };
 
+    // Update the search input handler
+    const handleSearchInputChange = (e) => {
+        setSearchInput(e.target.value);
+    };
+
+    // Add a handler for the search form submission
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        setSearchTerm(searchInput);
+        setCurrentPage(1); // Reset to first page when searching
+    };
+
+    // Add a function to clear the search
+    const clearSearch = () => {
+        setSearchInput('');
+        setSearchTerm('');
+        setCurrentPage(1); // Reset to first page
+    };
+
     return (
         <Container
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
         >
-            <Header>
-                <Title>Protocol Library</Title>
-                {isAuthenticated && (
-                    <CreateButton 
-                        onClick={() => navigate('/create-protocol')}
-                        theme={theme}
-                    >
-                        <FaPlus />
-                        <span>Create Protocol</span>
-                    </CreateButton>
-                )}
-            </Header>
+            {/* Header with title and create button removed */}
             
             {/* Show loading state */}
             {loading && (
@@ -939,16 +952,36 @@ const ProtocolSelection = () => {
                 
                 <ContentWrapper>
                     <SearchContainer>
-                        <SearchInput 
-                            type="text" 
-                            placeholder="Search protocols..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <SearchIcon>
-                            <FaSearch />
-                        </SearchIcon>
+                        <form onSubmit={handleSearchSubmit}>
+                            <SearchInput 
+                                type="text" 
+                                placeholder="Search protocols..." 
+                                value={searchInput}
+                                onChange={handleSearchInputChange}
+                            />
+                            {searchInput && (
+                                <ClearButton 
+                                    type="button" 
+                                    onClick={clearSearch}
+                                    title="Clear search"
+                                >
+                                    ×
+                                </ClearButton>
+                            )}
+                            <SearchButton type="submit" title="Search">
+                                <FaSearch />
+                            </SearchButton>
+                        </form>
                     </SearchContainer>
+                    
+                    <ResultsCount>
+                        {filteredProtocols.length === 0 ? 'No protocols found' : 
+                         filteredProtocols.length === 1 ? '1 protocol found' : 
+                         `${filteredProtocols.length} protocols found`}
+                        {searchTerm && ` for "${searchTerm}"`}
+                        {selectedCategory !== 'all' && ` in ${selectedCategory}`}
+                        {hasActiveFilters() && ' with applied filters'}
+                    </ResultsCount>
                     
                     <TableContainer>
                         <TableHeader>
@@ -967,89 +1000,107 @@ const ProtocolSelection = () => {
                         </TableHeader>
                         
                         <TableBody>
-                            <AnimatePresence>
+                            <AnimatePresence mode="wait">
                                 {currentItems.length > 0 ? (
                                     currentItems.map((protocol) => (
                                         <TableRow
                                             key={protocol.id}
-                                            layout
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.3 }}
+                                            transition={{ duration: 0.2 }}
                                             onClick={() => handleProtocolSelect(protocol.id)}
                                         >
                                             <ProtocolNameCell>
-                                                {protocol.name}
-                                                <div style={{ marginTop: '5px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px', flexWrap: 'wrap' }}>
-                                                        {selectedFilters.efficiency && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Efficiency:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.efficiency || 0).toFixed(1)}</span>
-                                                                    <StarIcon size={0.5} color="#F9D100" />
-                                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <div style={{ marginLeft: '0.5rem' }}>
+                                                        <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                                                            {protocol.name}
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                            {protocol.category && (
+                                                                <CategoryBadge>{protocol.category}</CategoryBadge>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ marginTop: '5px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px', flexWrap: 'wrap' }}>
+                                                                {selectedFilters.efficiency && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Efficiency:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.efficiency || 0).toFixed(1)}</span>
+                                                                            <StarIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.consistency && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Consistency:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.consistency || 0).toFixed(1)}</span>
+                                                                            <StarHalfIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.accuracy && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Accuracy:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.accuracy || 0).toFixed(1)}</span>
+                                                                            <StarOutlineIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.safety && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Safety:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.safety || 0).toFixed(1)}</span>
+                                                                            <StarOutlineIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.easeOfExecution && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Ease of Execution:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.easeOfExecution || 0).toFixed(1)}</span>
+                                                                            <StarHalfIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.scalability && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Scalability:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.scalability || 0).toFixed(1)}</span>
+                                                                            <StarIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.averageRatingScore && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Average Rating:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.rating || 0).toFixed(1)}</span>
+                                                                            <StarIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                        {selectedFilters.consistency && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Consistency:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.consistency || 0).toFixed(1)}</span>
-                                                                    <StarHalfIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.accuracy && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Accuracy:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.accuracy || 0).toFixed(1)}</span>
-                                                                    <StarOutlineIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.safety && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Safety:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.safety || 0).toFixed(1)}</span>
-                                                                    <StarOutlineIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.easeOfExecution && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Ease of Execution:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.easeOfExecution || 0).toFixed(1)}</span>
-                                                                    <StarHalfIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.scalability && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Scalability:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.scalability || 0).toFixed(1)}</span>
-                                                                    <StarIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.averageRatingScore && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Average Rating:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.rating || 0).toFixed(1)}</span>
-                                                                    <StarIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </ProtocolNameCell>
-                                            <AuthorCell>{protocol.author}</AuthorCell>
+                                            <AuthorCell>{
+                                                typeof protocol.author === 'string' 
+                                                    ? protocol.author 
+                                                    : (protocol.author && protocol.author.displayName 
+                                                        ? protocol.author.displayName 
+                                                        : (protocol.author && protocol.author.username 
+                                                            ? protocol.author.username 
+                                                            : 'Unknown'))
+                                            }</AuthorCell>
                                             <DateCell>{protocol.datePublished} at {protocol.publishTime}</DateCell>
                                             <RatingCell>
                                                 <RatingStars onClick={(e) => handleStarClick(e, protocol.id)}>
@@ -1077,8 +1128,16 @@ const ProtocolSelection = () => {
                             <PaginationButton 
                                 disabled={currentPage === 1} 
                                 onClick={() => setCurrentPage(1)}
+                                title="First Page"
                             >
                                 «
+                            </PaginationButton>
+                            <PaginationButton 
+                                disabled={currentPage === 1} 
+                                onClick={() => setCurrentPage(currentPage - 1)}
+                                title="Go Back"
+                            >
+                                {'<'}
                             </PaginationButton>
                             {currentPage > 1 && (
                                 <PaginationButton onClick={() => setCurrentPage(currentPage - 1)}>
@@ -1095,7 +1154,15 @@ const ProtocolSelection = () => {
                             )}
                             <PaginationButton 
                                 disabled={currentPage === totalPages} 
+                                onClick={() => setCurrentPage(currentPage + 1)}
+                                title="Go Forward"
+                            >
+                                {'>'}
+                            </PaginationButton>
+                            <PaginationButton 
+                                disabled={currentPage === totalPages} 
                                 onClick={() => setCurrentPage(totalPages)}
+                                title="Last Page"
                             >
                                 »
                             </PaginationButton>
@@ -1111,89 +1178,21 @@ const ProtocolSelection = () => {
                     transition={{ duration: 0.3 }}
                 >
                     <ProtocolDetailHeader>
-                        <ProtocolTitle>{selectedProtocol.name}</ProtocolTitle>
+                        <h2>{selectedProtocol.name}</h2>
                         <ProtocolDetailActions>
-                            <div style={{ display: 'flex', gap: '12px' }}>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                >
-                                    <ThumbUpIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                >
-                                    <BookmarkIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                    onClick={() => setViewMode('review')}
-                                >
-                                    <StarIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                >
-                                    <ShareIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                    title="Edit Protocol"
-                                >
-                                    <EditIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    onClick={handleCloseProtocol}
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                >
-                                    <CloseIcon size={0.8} color="#757575" />
-                                </button>
+                            <div>
+                                <button onClick={handleCloseProtocol}>Close</button>
                             </div>
                         </ProtocolDetailActions>
                     </ProtocolDetailHeader>
                     <ProtocolInfo>
-                        <span>By {selectedProtocol.author}</span>
+                        <span>By {typeof selectedProtocol.author === 'string' 
+                            ? selectedProtocol.author 
+                            : (selectedProtocol.author && selectedProtocol.author.displayName 
+                                ? selectedProtocol.author.displayName 
+                                : (selectedProtocol.author && selectedProtocol.author.username 
+                                    ? selectedProtocol.author.username 
+                                    : 'Unknown'))}</span>
                         <span>•</span>
                         <span>Published: {selectedProtocol.datePublished}</span>
                         <span>•</span>
@@ -1825,6 +1824,7 @@ const ProtocolSelection = () => {
 
 const Container = styled(motion.div)`
     padding: 0;
+    margin: 0;
     max-width: 100%;
     width: 100%;
     height: 100%;
@@ -1933,9 +1933,16 @@ const RetryButton = styled.button`
 
 const FiltersAndContentWrapper = styled.div`
     display: flex;
-    flex: 1;
-    overflow: hidden;
+    flex-direction: row;
+    gap: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
     width: 100%;
+    margin-top: 0;
+    padding-top: 0;
+    flex: 1;
+    
+    @media (max-width: 768px) {
+        flex-direction: column;
+    }
 `;
 
 const FiltersWrapper = styled.div`
@@ -1992,17 +1999,51 @@ const FilterCheckboxes = styled.div`
 const FilterCheckbox = styled.div`
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center; /* Changed from flex-start to center for vertical alignment */
     flex-wrap: wrap;
     margin-bottom: 8px;
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     
-    input {
+    input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        outline: none;
+        cursor: pointer;
+        position: relative;
         margin: 0;
+        
+        &:checked {
+            background-color: #3ab2b4;
+            border-color: #3ab2b4;
+        }
+        
+        &:checked::after {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 2px;
+            width: 4px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        
+        &:focus {
+            box-shadow: 0 0 0 2px rgba(58, 178, 180, 0.3);
+        }
     }
     
     label {
         margin-left: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        min-height: 16px; /* Match the height of the checkbox */
     }
     
     & > div {
@@ -2017,7 +2058,7 @@ const ClearFiltersButton = styled.button`
     border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'};
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
-    background-color: ${({ disabled }) => disabled ? '#F0F0F0' : '#222222'};
+    background-color: ${({ disabled }) => disabled ? '#F0F0F0' : '#3ab2b4'};
     color: ${({ disabled }) => disabled ? '#555555' : '#FFFFFF'};
     border: none;
     transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
@@ -2032,28 +2073,37 @@ const ClearFiltersButton = styled.button`
 
 const SearchContainer = styled.div`
     position: relative;
-    width: 100%;
-    margin-bottom: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
+    width: 300px;
+    margin-bottom: 0.75rem;
+    
+    form {
+        display: flex;
+        position: relative;
+        width: 100%;
+    }
     
     @media (max-width: 768px) {
         max-width: 100%;
+        width: 100%;
     }
 `;
 
 const SearchInput = styled.input`
     width: 100%;
-    padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    padding-left: ${({ theme }) => theme.spacing?.xl || '2rem'};
-    border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'};
+    padding: 0.5rem;
+    padding-left: 1rem; /* Adjusted to start text from a reasonable position */
+    padding-right: 40px;
+    border-radius: 16px;
     border: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
-    font-size: ${({ theme }) => theme.typography?.fontSize?.md || '1rem'};
+    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     transition: border-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, box-shadow ${({ theme }) => theme.transition?.fast || '0.15s ease'};
     background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+    height: 32px;
     
     &:focus {
         outline: none;
-        border-color: ${({ theme }) => theme.primary || '#00BCD4'};
-        box-shadow: 0 0 0 2px ${({ theme }) => `${theme.primary || '#00BCD4'}33` || 'rgba(0, 188, 212, 0.2)'};
+        border-color: #3ab2b4;
+        box-shadow: 0 0 0 2px rgba(58, 178, 180, 0.2);
     }
     
     &::placeholder {
@@ -2061,12 +2111,31 @@ const SearchInput = styled.input`
     }
 `;
 
-const SearchIcon = styled.div`
+const SearchButton = styled.button`
     position: absolute;
-    left: ${({ theme }) => theme.spacing?.md || '1rem'};
-    top: 50%;
-    transform: translateY(-50%);
+    right: 0;
+    top: 0;
+    height: 32px;
+    width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
     color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    cursor: pointer;
+    font-size: 0.875rem;
+    
+    &:hover {
+        color: #3ab2b4;
+    }
+`;
+
+const ResultsCount = styled.div`
+    font-size: 0.75rem;
+    color: ${({ theme }) => theme.text?.secondary || '#757575'};
+    margin-top: 0.25rem;
+    margin-bottom: 0.75rem;
 `;
 
 const TableContainer = styled.div`
@@ -2202,6 +2271,11 @@ const PaginationContainer = styled.div`
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
     border-top: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
     background-color: ${({ theme }) => theme.background?.main || '#F5F5F5'};
+    
+    @media (max-width: 768px) {
+        flex-direction: column;
+        gap: 10px;
+    }
 `;
 
 const PaginationInfo = styled.div`
@@ -2212,11 +2286,19 @@ const PaginationInfo = styled.div`
 const Pagination = styled.div`
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    flex-wrap: wrap;
+    
+    @media (max-width: 768px) {
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+    }
 `;
 
 const PaginationButton = styled.button`
-    padding: ${({ theme }) => theme.spacing?.xs || '0.25rem'} ${({ theme }) => theme.spacing?.sm || '0.5rem'};
+    padding: ${({ theme }) => theme.spacing?.xs || '0.25rem'} ${({ theme }) => theme.spacing?.md || '0.75rem'};
     border-radius: ${({ theme }) => theme.borderRadius?.sm || '0.25rem'};
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
@@ -2226,9 +2308,20 @@ const PaginationButton = styled.button`
     opacity: ${({ disabled }) => disabled ? 0.5 : 1};
     cursor: ${({ disabled }) => disabled ? 'not-allowed' : 'pointer'};
     border: none;
+    margin: 0 2px;
+    min-width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     
     &:hover:not(:disabled) {
         background-color: ${({ theme, active }) => active ? theme.primary || '#00BCD4' : theme.background?.tertiary || '#E0E0E0'};
+        color: ${({ theme, active }) => active ? 'white' : theme.primary || '#00BCD4'};
+    }
+    
+    &:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px ${({ theme }) => `${theme.primary || '#00BCD4'}33` || 'rgba(0, 188, 212, 0.2)'};
     }
 `;
 
@@ -2445,15 +2538,15 @@ const ProtocolTypeButton = styled.button`
     display: flex;
     align-items: center;
     padding: 8px 16px;
-    background-color: ${({ active }) => active ? '#E6F7FA' : 'white'};
-    color: ${({ active }) => active ? '#00BCD4' : '#757575'};
-    border: 1px solid ${({ active }) => active ? '#00BCD4' : '#E0E0E0'};
+    background-color: ${({ active }) => active ? 'rgba(58, 178, 180, 0.1)' : 'white'};
+    color: ${({ active }) => active ? '#3ab2b4' : '#757575'};
+    border: 1px solid ${({ active }) => active ? '#3ab2b4' : '#E0E0E0'};
     border-radius: 50px;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: ${({ active }) => active ? '0 2px 4px rgba(0, 188, 212, 0.15)' : '0 1px 2px rgba(0,0,0,0.05)'};
+    box-shadow: ${({ active }) => active ? '0 2px 4px rgba(58, 178, 180, 0.15)' : '0 1px 2px rgba(0,0,0,0.05)'};
     width: 100%;
     text-align: left;
     position: relative;
@@ -2461,12 +2554,46 @@ const ProtocolTypeButton = styled.button`
     min-width: 200px;
     
     &:hover {
-        background-color: ${({ active }) => active ? '#E6F7FA' : '#F5F5F5'};
+        background-color: ${({ active }) => active ? 'rgba(58, 178, 180, 0.1)' : '#F5F5F5'};
     }
     
     svg {
-        fill: ${({ active }) => active ? '#00BCD4' : '#757575'};
+        fill: ${({ active }) => active ? '#3ab2b4' : '#757575'};
     }
+`;
+
+const ClearButton = styled.button`
+    position: absolute;
+    right: 32px;
+    top: 0;
+    height: 32px;
+    width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    cursor: pointer;
+    font-size: 1.25rem;
+    font-weight: bold;
+    line-height: 1;
+    padding: 0;
+    margin: 0;
+    
+    &:hover {
+        color: #ff6b6b;
+    }
+`;
+
+const CategoryBadge = styled.span`
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: rgba(58, 178, 180, 0.1);
+    color: #3ab2b4;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
 `;
 
 export default ProtocolSelection;

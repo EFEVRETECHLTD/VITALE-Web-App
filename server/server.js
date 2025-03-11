@@ -9,16 +9,20 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 // Import database connection
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 
 // Import seeder
 const { seedDatabase, getInMemoryDB } = require('./utils/seeder');
+
+// Import protocol generator
+const { generateProtocols } = require('./utils/generateProtocols');
 
 // Import cache
 const { initRedis, getCache, setCache } = require('./utils/cache');
 
 // Import routes
 const healthRoutes = require('./routes/health');
+const devRoutes = require('./routes/dev');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -85,15 +89,11 @@ const initializeServices = async () => {
       Review = require('./models/Review');
     } else {
       // Check if in-memory mode is allowed
-      if (process.env.ALLOW_IN_MEMORY === 'true') {
-        console.log('Using in-memory database');
-        // Use in-memory database
-        await seedDatabase();
-        db = getInMemoryDB();
-      } else {
-        console.error('Database connection failed and in-memory mode is not allowed. Exiting...');
-        process.exit(1);
-      }
+      // Always allow in-memory mode for development
+      console.log('Using in-memory database');
+      // Use in-memory database
+      await seedDatabase();
+      db = getInMemoryDB();
     }
     
     // Initialize Redis cache if enabled
@@ -346,13 +346,26 @@ app.get('/api/protocols', async (req, res) => {
     if (isMongoConnected) {
       // MongoDB implementation
       protocols = await Protocol.find({ status: 'published' })
-        .populate('author', 'username profileImage')
+        .populate('author', 'username displayName profileImage')
         .select('-__v');
     } else {
       // In-memory implementation
       // Calculate and update ratings for each protocol based on reviews
       protocols = db.protocols.map(protocol => {
         const protocolReviews = db.reviews.filter(r => r.protocol === protocol.id);
+        
+        // Look up the author information
+        if (typeof protocol.author === 'string') {
+          const authorUser = db.users.find(user => user.id === protocol.author);
+          if (authorUser) {
+            protocol.author = {
+              _id: authorUser.id,
+              username: authorUser.username,
+              displayName: authorUser.displayName || authorUser.username,
+              profileImage: authorUser.profileImage
+            };
+          }
+        }
         
         if (protocolReviews.length > 0) {
           // Calculate overall rating
@@ -791,8 +804,37 @@ app.put('/api/protocols/:id/reviews/:reviewId', authenticateToken, async (req, r
   }
 });
 
+// Add a debugging route to check protocol structure
+app.get('/api/debug/protocols', (req, res) => {
+  try {
+    if (isMongoConnected) {
+      // MongoDB implementation
+      Protocol.findOne().then(protocol => {
+        res.json({ 
+          count: 'MongoDB protocol count will be fetched separately',
+          sampleProtocol: protocol 
+        });
+      });
+    } else {
+      // In-memory implementation
+      res.json({ 
+        count: db.protocols.length,
+        sampleProtocol: db.protocols.length > 0 ? db.protocols[0] : null 
+      });
+    }
+  } catch (error) {
+    console.error('Debug protocols error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Health check route
-app.use('/api/health', healthRoutes);
+app.use('/health', healthRoutes);
+
+// Development routes (only available in development)
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/dev', devRoutes);
+}
 
 // Error handling middleware
 app.use((err, req, res, next) => {
