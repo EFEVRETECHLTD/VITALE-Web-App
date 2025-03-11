@@ -1,0 +1,330 @@
+.status-page {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    background: white;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+}
+
+.header {
+    text-align: left;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.header h1 {
+    font-size: min(2rem, 5vw);
+    color: #333;
+    margin: 0;
+    font-weight: 500;
+}
+
+.sub-header {
+    color: #666;
+    margin: 0.25rem 0;
+    font-size: min(1rem, 2.8vw);
+    opacity: 0.7;
+    font-style: italic;
+}
+
+.sample-count {
+    color: #333;
+    font-weight: 400;
+    margin: 0.5rem 0 0;
+    font-size: min(1.1rem, 3vw);
+}
+
+.main-content {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 0;
+    width: 100%;
+    padding: 0 2rem;
+}
+
+.percentage {
+    position: relative;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    width: 25%;
+    min-width: 150px;
+}
+
+.percentage > div {
+    display: flex;
+    align-items: flex-start;
+}
+
+.percentage .number {
+    font-size: min(8rem, 15vw);
+    font-weight: 500;
+    line-height: 1;
+    color: #00bfb3;
+}
+
+.percentage .symbol {
+    font-size: min(4rem, 8vw);
+    color: #00bfb3;
+    font-weight: 500;
+    margin-left: 0.2em;
+}
+
+.percentage .label {
+    color: #666;
+    font-size: min(1.2rem, 2.8vw);
+    font-weight: 400;
+    margin-top: 0.5em;
+}
+
+.progress-ring-container {
+    position: relative;
+    width: min(550px, 50vh);
+    height: min(550px, 50vh);
+    margin: 0 auto;
+    padding: 2rem;
+    flex: 0 0 auto;
+}
+
+.progress-ring {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.time-display {
+    font-size: min(4rem, 6vw);
+    fill: #333;
+    font-weight: 500;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.time-label {
+    font-size: min(1.2rem, 2.2vw);
+    fill: #666;
+    font-weight: 400;
+    opacity: 0.7;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.control-buttons {
+    position: absolute;
+    left: 50%;
+    top: 60%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 1rem;
+    z-index: 3;
+    margin-top: 2rem;
+}
+
+.control-buttons button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #00bfb3;
+    transition: all 0.2s ease;
+    padding: 10px;
+}
+
+.control-buttons button:hover:not(:disabled) {
+    background: #fafafa;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    transform: scale(1.05);
+}
+
+.control-buttons button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.step-info {
+    position: relative;
+    right: 0;
+    text-align: right;
+    padding-left: 2rem;
+    max-width: 300px;
+    width: 25%;
+    min-width: 150px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.step-label {
+    font-weight: 500;
+    color: #00bfb3;
+    font-size: min(1.1rem, 2.2vw);
+    margin-bottom: 0.5rem;
+}
+
+.step-description {
+    color: #666;
+    line-height: 1.4;
+    font-size: min(1rem, 2vw);
+    opacity: 0.8;
+}
+
+.power-button {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.power-button:hover {
+    background: #f5f5f5;
+    color: #333;
+}
+
+.protocol-library-tab {
+    height: calc(100vh - 12rem);
+    overflow-y: auto;
+    padding-right: 1rem;
+    scrollbar-width: thin;
+    scrollbar-color: #888 #f1f1f1;
+}
+
+.protocol-library-tab::-webkit-scrollbar {
+    width: 8px;
+}
+
+.protocol-library-tab::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.protocol-library-tab::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.protocol-library-tab::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.protocol-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.protocol-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.protocol-card h3 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+}
+
+.protocol-card p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.no-protocol-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 2rem;
+}
+
+.no-protocol-message h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.no-protocol-message p {
+    margin-bottom: 2rem;
+    color: #666;
+    max-width: 500px;
+}
+
+.select-protocol-button {
+    background-color: #00BCD4;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.select-protocol-button:hover {
+    background-color: #0097A7;
+}
+
+/* Add responsive styles for smaller screens */
+@media (max-width: 1024px) {
+    .main-content {
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 2rem;
+    }
+    
+    .percentage, .step-info {
+        position: static;
+        transform: none;
+        width: 100%;
+        max-width: 100%;
+        text-align: center;
+        align-items: center;
+    }
+    
+    .percentage > div {
+        justify-content: center;
+    }
+    
+    .step-info {
+        padding-left: 0;
+        margin-top: 2rem;
+        align-items: center;
+    }
+    
+    .progress-ring-container {
+        width: min(450px, 80vw);
+        height: min(450px, 80vw);
+        padding: 1rem;
+    }
+}
