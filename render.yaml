@@ -17,9 +17,10 @@ services:
       - key: USE_REDIS
         value: false
       - key: MONGODB_URI
-        fromDatabase:
+        fromService:
           name: instrument-status-db
-          property: connectionString
+          type: pserv
+          envVarKey: MONGODB_URL
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
@@ -43,8 +44,16 @@ services:
           type: web
           property: url
 
-databases:
-  # MongoDB database
-  - name: instrument-status-db
-    plan: free
-    type: mongodb 
+  # MongoDB service
+  - type: pserv
+    name: instrument-status-db
+    env: docker
+    repo: https://github.com/render-examples/mongodb.git
+    envVars:
+      - key: MONGODB_URL
+        value: mongodb://instrument-status-db:27017/instrument-status
+    disk:
+      name: data
+      mountPath: /data/db
+      sizeGB: 10
+    plan: free 
