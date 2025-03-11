@@ -84,14 +84,32 @@ const initializeServices = async () => {
       Protocol = require('./models/Protocol');
       Review = require('./models/Review');
     } else {
-      console.log('Using in-memory database');
-      // Use in-memory database
-      await seedDatabase();
-      db = getInMemoryDB();
+      // Check if in-memory mode is allowed
+      if (process.env.ALLOW_IN_MEMORY === 'true') {
+        console.log('Using in-memory database');
+        // Use in-memory database
+        await seedDatabase();
+        db = getInMemoryDB();
+      } else {
+        console.error('Database connection failed and in-memory mode is not allowed. Exiting...');
+        process.exit(1);
+      }
     }
     
-    // Initialize Redis cache
-    isRedisConnected = await initRedis();
+    // Initialize Redis cache if enabled
+    if (process.env.USE_REDIS === 'true') {
+      try {
+        isRedisConnected = await initRedis();
+        console.log('Redis initialized successfully');
+      } catch (error) {
+        console.error('Redis initialization failed:', error.message);
+        console.log('Continuing without Redis caching');
+        isRedisConnected = false;
+      }
+    } else {
+      console.log('Redis is disabled by configuration');
+      isRedisConnected = false;
+    }
     
   } catch (error) {
     console.error('Services initialization error:', error);
@@ -802,11 +820,16 @@ process.on('uncaughtException', (err) => {
 
 // Start server
 const startServer = async () => {
-  await initializeServices();
-  
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  try {
+    await initializeServices();
+    
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error.message);
+    process.exit(1);
+  }
 };
 
 startServer();

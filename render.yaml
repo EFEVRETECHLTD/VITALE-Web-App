@@ -1,0 +1,48 @@
+services:
+  # Backend API service
+  - type: web
+    name: instrument-status-api
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: USE_MONGODB
+        value: true
+      - key: ALLOW_IN_MEMORY
+        value: true
+      - key: USE_REDIS
+        value: false
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        fromService:
+          name: instrument-status-frontend
+          type: web
+          property: url
+
+  # Frontend service
+  - type: web
+    name: instrument-status-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./build
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REACT_APP_API_URL
+        fromService:
+          name: instrument-status-api
+          type: web
+          property: url
+
+databases:
+  # MongoDB database
+  - name: instrument-status-db
+    plan: free
+    type: mongodb 
