@@ -5,6 +5,7 @@ services:
     env: node
     buildCommand: cd server && npm install
     startCommand: cd server && npm start
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
@@ -35,6 +36,7 @@ services:
     env: static
     buildCommand: npm install && npm run build
     staticPublishPath: ./build
+    plan: free
     envVars:
       - key: NODE_ENV
         value: production
@@ -49,11 +51,7 @@ services:
     name: instrument-status-db
     env: docker
     repo: https://github.com/render-examples/mongodb.git
+    plan: free
     envVars:
       - key: MONGODB_URL
-        value: mongodb://instrument-status-db:27017/instrument-status
-    plan: standard
-    disk:
-      name: data
-      mountPath: /data/db
-      sizeGB: 10 
+        value: mongodb://instrument-status-db:27017/instrument-status 
