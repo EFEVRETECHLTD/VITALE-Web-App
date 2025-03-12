@@ -33,7 +33,9 @@ const ProtocolSelection = () => {
         const fetchProtocols = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('http://localhost:3001/api/protocols');
+                // Use the current hostname instead of hardcoded localhost
+                const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols`;
+                const response = await fetch(apiUrl);
                 
                 if (!response.ok) {
                     throw new Error('Failed to fetch protocols');
@@ -560,7 +562,8 @@ const ProtocolSelection = () => {
     // Add a function to fetch reviews for a protocol
     const fetchProtocolReviews = async (protocolId) => {
         try {
-            const response = await fetch(`http://localhost:3001/api/protocols/${protocolId}/reviews`);
+            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/reviews`;
+            const response = await fetch(apiUrl);
             if (response.ok) {
                 const data = await response.json();
                 setProtocolReviews(data);
@@ -617,7 +620,8 @@ const ProtocolSelection = () => {
                 return;
             }
             
-            const response = await fetch(`http://localhost:3001/api/protocols/${selectedProtocol.id}/reviews`, {
+            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${selectedProtocol.id}/reviews`;
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -668,8 +672,9 @@ const ProtocolSelection = () => {
                 scalability: 0
             });
             
-            // Refresh protocols to get updated ratings
-            const protocolsResponse = await fetch('http://localhost:3001/api/protocols');
+            // Refresh protocols list
+            const protocolsApiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols`;
+            const protocolsResponse = await fetch(protocolsApiUrl);
             if (protocolsResponse.ok) {
                 const data = await protocolsResponse.json();
                 setProtocols(data);

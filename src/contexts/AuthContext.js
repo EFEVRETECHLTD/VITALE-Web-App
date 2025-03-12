@@ -3,8 +3,11 @@ import React, { createContext, useState, useEffect } from 'react';
 // Create the Auth Context
 export const AuthContext = createContext();
 
-// Base URL for API
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+// Use dynamic hostname based on current location if no environment variable is set
+const API_URL = process.env.REACT_APP_API_URL || 
+  (typeof window !== 'undefined' ? 
+    `${window.location.protocol}//${window.location.hostname}:3001` : 
+    'http://localhost:3001');
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);

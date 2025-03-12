@@ -68,7 +68,8 @@ const ProtocolForm = () => {
     setIsLoading(true);
     
     try {
-      const response = await authFetch('http://localhost:3001/api/protocols', {
+      const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols`;
+      const response = await authFetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
