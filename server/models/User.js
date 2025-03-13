@@ -54,6 +54,10 @@ const UserSchema = new mongoose.Schema({
   favoriteProtocols: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Protocol'
+  }],
+  bookmarks: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Protocol'
   }]
 });
 

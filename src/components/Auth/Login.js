@@ -1,11 +1,9 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
-import { ThemeContext } from '../../ThemeContext';
 import { AuthContext } from '../../contexts/AuthContext';
 
 const Login = () => {
-  const { theme } = useContext(ThemeContext);
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
   
@@ -39,15 +37,15 @@ const Login = () => {
   };
   
   return (
-    <Container theme={theme}>
-      <FormCard theme={theme}>
-        <Title theme={theme}>Login</Title>
+    <Container>
+      <FormCard>
+        <Title>Login</Title>
         
         {error && <ErrorMessage>{error}</ErrorMessage>}
         
         <Form onSubmit={handleSubmit}>
           <FormGroup>
-            <Label htmlFor="username" theme={theme}>Username</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
               type="text"
               id="username"
@@ -55,12 +53,11 @@ const Login = () => {
               value={formData.username}
               onChange={handleChange}
               required
-              theme={theme}
             />
           </FormGroup>
           
           <FormGroup>
-            <Label htmlFor="password" theme={theme}>Password</Label>
+            <Label htmlFor="password">Password</Label>
             <Input
               type="password"
               id="password"
@@ -68,16 +65,15 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              theme={theme}
             />
           </FormGroup>
           
-          <Button type="submit" disabled={isLoading} theme={theme}>
+          <Button type="submit" disabled={isLoading}>
             {isLoading ? 'Logging in...' : 'Login'}
           </Button>
         </Form>
         
-        <Footer theme={theme}>
+        <Footer>
           Don't have an account? <Link to="/register">Register</Link>
         </Footer>
       </FormCard>
@@ -92,7 +88,6 @@ const Container = styled.div`
   align-items: center;
   min-height: 80vh;
   padding: 20px;
-  background-color: ${props => props.theme.background};
 `;
 
 const FormCard = styled.div`
@@ -101,13 +96,11 @@ const FormCard = styled.div`
   padding: 30px;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  background-color: ${props => props.theme.cardBackground};
 `;
 
 const Title = styled.h2`
   margin-bottom: 24px;
   text-align: center;
-  color: ${props => props.theme.text};
 `;
 
 const Form = styled.form`
@@ -125,21 +118,17 @@ const FormGroup = styled.div`
 const Label = styled.label`
   font-size: 14px;
   font-weight: 500;
-  color: ${props => props.theme.text};
 `;
 
 const Input = styled.input`
   padding: 10px 12px;
-  border: 1px solid ${props => props.theme.border};
+  border: 1px solid #ccc;
   border-radius: 4px;
-  background-color: ${props => props.theme.inputBackground};
-  color: ${props => props.theme.text};
-  font-size: 16px;
   
   &:focus {
     outline: none;
-    border-color: ${props => props.theme.primary};
-    box-shadow: 0 0 0 2px ${props => props.theme.primaryLight};
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
   }
 `;
 
@@ -148,7 +137,7 @@ const Button = styled.button`
   margin-top: 8px;
   border: none;
   border-radius: 4px;
-  background-color: ${props => props.theme.primary};
+  background-color: #007bff;
   color: white;
   font-size: 16px;
   font-weight: 500;
@@ -156,11 +145,11 @@ const Button = styled.button`
   transition: background-color 0.2s;
   
   &:hover {
-    background-color: ${props => props.theme.primaryDark};
+    background-color: #0056b3;
   }
   
   &:disabled {
-    background-color: ${props => props.theme.disabled};
+    background-color: #6c757d;
     cursor: not-allowed;
   }
 `;
@@ -178,10 +167,9 @@ const Footer = styled.div`
   margin-top: 24px;
   text-align: center;
   font-size: 14px;
-  color: ${props => props.theme.textSecondary};
   
   a {
-    color: ${props => props.theme.primary};
+    color: #007bff;
     text-decoration: none;
     
     &:hover {

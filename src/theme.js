@@ -1,5 +1,5 @@
 // Modern design system with Vuesax-inspired color scheme
-export const theme = {
+const theme = {
   light: {
     // Vuesax primary colors
     primary: '#5A8DEE', // Vuesax primary blue
@@ -32,40 +32,6 @@ export const theme = {
       small: '0 2px 8px rgba(0, 0, 0, 0.08)',
       medium: '0 4px 16px rgba(0, 0, 0, 0.12)',
       large: '0 8px 30px rgba(0, 0, 0, 0.16)',
-    },
-  },
-  dark: {
-    // Vuesax primary colors for dark theme
-    primary: '#5A8DEE', // Vuesax primary blue
-    secondary: '#757575', // Secondary Text color
-    accent: '#5A8DEE', // Accent color
-    // Vuesax status colors
-    status: {
-      success: '#46c93a', // Vuesax success green
-      warning: '#ffba00', // Vuesax warning yellow
-      danger: '#f91f43', // Vuesax danger red
-      info: '#2c82e0', // Vuesax info blue
-    },
-    background: {
-      main: '#212121', // Dark background
-      secondary: '#303030', // Dark card background
-      tertiary: '#424242', // Dark tertiary background
-    },
-    text: {
-      primary: '#FFFFFF', // White text
-      secondary: '#EEEEEE', // Light gray text
-      tertiary: '#BDBDBD', // Medium gray text
-      disabled: '#757575', // Dark gray text
-    },
-    border: {
-      light: '#424242', // Dark light border
-      medium: '#616161', // Dark medium border
-      dark: '#757575', // Dark dark border
-    },
-    shadow: {
-      small: '0 2px 8px rgba(0, 0, 0, 0.2)',
-      medium: '0 4px 16px rgba(0, 0, 0, 0.3)',
-      large: '0 8px 30px rgba(0, 0, 0, 0.4)',
     },
   },
   // Shared properties across themes

@@ -19,22 +19,11 @@ const GlobalStyles = createGlobalStyle`
     padding: 0;
     font-family: ${({ theme }) => theme?.typography?.fontFamily?.primary || "'Inter', 'Segoe UI', 'Roboto', sans-serif"};
     background-color: #FFFFFF;
-    color: ${({ theme }) => theme?.text?.primary || (theme?.mode === 'dark' ? '#FFFFFF' : '#212121')};
+    color: ${({ theme }) => theme?.text?.primary || '#212121'};
     transition: background-color ${({ theme }) => theme?.transition?.normal || '0.3s ease'}, color ${({ theme }) => theme?.transition?.normal || '0.3s ease'};
     line-height: ${({ theme }) => theme?.typography?.lineHeight?.normal || 1.5};
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-
-  /* Global theme classes for CSS selector access */
-  html.dark body {
-    background-color: #FFFFFF;
-    color: ${({ theme }) => theme?.dark?.text?.primary || '#FFFFFF'};
-  }
-
-  html.light body {
-    background-color: #FFFFFF;
-    color: ${({ theme }) => theme?.light?.text?.primary || '#212121'};
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -102,12 +91,12 @@ const GlobalStyles = createGlobalStyle`
   }
 
   ::-webkit-scrollbar-thumb {
-    background: ${({ theme }) => theme?.border?.medium || (theme?.mode === 'dark' ? '#616161' : '#BDBDBD')};
+    background: ${({ theme }) => theme?.border?.medium || '#BDBDBD'};
     border-radius: ${({ theme }) => theme?.borderRadius?.md || '0.5rem'};
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: ${({ theme }) => theme?.border?.dark || (theme?.mode === 'dark' ? '#757575' : '#9E9E9E')};
+    background: ${({ theme }) => theme?.border?.dark || '#9E9E9E'};
   }
 
   /* Focus styles for accessibility */

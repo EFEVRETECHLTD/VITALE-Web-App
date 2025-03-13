@@ -1,75 +1,208 @@
 import React from 'react';
-import Icon from '@mdi/react';
-import { 
-  mdiThumbUpOutline, 
-  mdiBookmarkOutline, 
-  mdiStar, 
-  mdiStarOutline, 
-  mdiStarHalfFull, 
-  mdiShareOutline, 
-  mdiClose, 
-  mdiPlayOutline,
-  mdiMagnify,
-  mdiCheckCircleOutline,
-  mdiAlertOutline,
-  mdiInformationOutline,
-  mdiHeartOutline,
-  mdiPencilOutline
-} from '@mdi/js';
+import {
+  HandThumbUpIcon as HeroThumbUp,
+  BookmarkIcon as HeroBookmark,
+  ShareIcon as HeroShare,
+  XMarkIcon as HeroClose,
+  PlayIcon as HeroPlay,
+  MagnifyingGlassIcon as HeroSearch,
+  CheckCircleIcon as HeroCheckCircle,
+  PencilIcon as HeroEdit,
+  ExclamationTriangleIcon as HeroAlert,
+  InformationCircleIcon as HeroInfo,
+  HeartIcon as HeroHeart
+} from '@heroicons/react/24/outline';
 
-// Vuesax-inspired styling with subtle transition effects for linear icons
-const vuesaxIconStyle = {
+import {
+  StarIcon as HeroStarSolid
+} from '@heroicons/react/24/solid';
+
+import {
+  StarIcon as HeroStarOutline
+} from '@heroicons/react/24/outline';
+
+// Heroicons styling
+const heroIconStyle = {
   transition: 'all 0.25s ease',
   cursor: 'pointer',
 };
 
+// Helper function to set icon size
+const getIconSize = (size) => {
+  // Heroicons uses className or width/height props
+  // Convert the size multiplier to pixels (base size of 24px)
+  return Math.round(24 * size);
+};
+
 export const ThumbUpIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiThumbUpOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroThumbUp 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const BookmarkIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiBookmarkOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroBookmark 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const StarIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiStar} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroStarSolid 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
+// For outline star, use the outline variant
 export const StarOutlineIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiStarOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroStarOutline 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
-export const StarHalfIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiStarHalfFull} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+// For half star, create a custom component with proper alignment
+export const StarHalfIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => {
+  const iconSize = getIconSize(size);
+  return (
+    <div style={{ 
+      position: 'relative', 
+      width: iconSize, 
+      height: iconSize, 
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...style 
+    }} {...props}>
+      {/* Background star (outline) */}
+      <HeroStarOutline 
+        width={iconSize} 
+        height={iconSize} 
+        color="#DDD" 
+        style={{ position: 'absolute', top: 0, left: 0 }} 
+      />
+      {/* Half filled star */}
+      <div style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        width: iconSize, 
+        height: iconSize, 
+        overflow: 'hidden',
+        clipPath: 'polygon(0 0, 50% 0, 50% 100%, 0 100%)'
+      }}>
+        <HeroStarSolid 
+          width={iconSize} 
+          height={iconSize} 
+          color={color} 
+        />
+      </div>
+    </div>
+  );
+};
 
 export const ShareIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiShareOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroShare 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const CloseIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiClose} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroClose 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const PlayIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiPlayOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroPlay 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const SearchIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiMagnify} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroSearch 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const CheckCircleIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiCheckCircleOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroCheckCircle 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const EditIcon = ({ size = 1, color = 'currentColor', style = {}, ...props }) => 
-  <Icon path={mdiPencilOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroEdit 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
-// New Vuesax-inspired icons with linear style
+// Specialized icons with predefined colors
 export const SuccessIcon = ({ size = 1, color = '#46c93a', style = {}, ...props }) => 
-  <Icon path={mdiCheckCircleOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroCheckCircle 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const WarningIcon = ({ size = 1, color = '#ffba00', style = {}, ...props }) => 
-  <Icon path={mdiAlertOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroAlert 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const InfoIcon = ({ size = 1, color = '#2c82e0', style = {}, ...props }) => 
-  <Icon path={mdiInformationOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroInfo 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
 export const HeartIcon = ({ size = 1, color = '#f91f43', style = {}, ...props }) => 
-  <Icon path={mdiHeartOutline} size={size} color={color} style={{...vuesaxIconStyle, ...style}} {...props} />;
+  <HeroHeart 
+    width={getIconSize(size)} 
+    height={getIconSize(size)} 
+    color={color} 
+    style={{...heroIconStyle, ...style}} 
+    {...props} 
+  />;
 
-// Add TabIcon component
+// TabIcon component
 export const TabIcon = ({ children, style = {}, ...props }) => (
   <div 
     style={{ 
@@ -84,3 +217,23 @@ export const TabIcon = ({ children, style = {}, ...props }) => (
     {children}
   </div>
 );
+
+// SortIcon component
+export const SortIcon = ({ direction = 'ascending', size = 0.8, color = 'currentColor', style = {}, ...props }) => {
+  // Use a simple arrow character for the sort icon
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        marginLeft: '4px',
+        fontSize: `${getIconSize(size)}px`,
+        color: color,
+        ...heroIconStyle,
+        ...style
+      }}
+      {...props}
+    >
+      {direction === 'ascending' ? '↑' : '↓'}
+    </span>
+  );
+};

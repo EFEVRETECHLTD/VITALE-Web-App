@@ -86,6 +86,13 @@ const ProtocolSchema = new mongoose.Schema({
   sharedWith: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  }],
+  worksForMeCount: {
+    type: Number,
+    default: 0
+  },
+  worksForMeUsers: [{
+    type: String // Store user IDs as strings for compatibility with in-memory DB
   }]
 }, {
   timestamps: true,

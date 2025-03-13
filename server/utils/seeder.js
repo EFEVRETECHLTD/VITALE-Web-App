@@ -141,9 +141,23 @@ const seedInMemoryDB = async () => {
     // Load generated protocols if available
     const generatedProtocols = loadGeneratedProtocols();
     if (generatedProtocols && generatedProtocols.length > 0) {
+      // Ensure each protocol has worksForMeCount and worksForMeUsers initialized
+      const protocolsWithWorksForMe = generatedProtocols.map(protocol => ({
+        ...protocol,
+        worksForMeCount: protocol.worksForMeCount || 0,
+        worksForMeUsers: protocol.worksForMeUsers || []
+      }));
+      
       // Replace the protocols with the generated ones
-      inMemoryDB.protocols = generatedProtocols;
+      inMemoryDB.protocols = protocolsWithWorksForMe;
       console.log(`Loaded ${generatedProtocols.length} generated protocols`);
+    } else {
+      // Ensure each protocol has worksForMeCount and worksForMeUsers initialized
+      inMemoryDB.protocols = inMemoryDB.protocols.map(protocol => ({
+        ...protocol,
+        worksForMeCount: protocol.worksForMeCount || 0,
+        worksForMeUsers: protocol.worksForMeUsers || []
+      }));
     }
     
   } catch (error) {

@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
-import { FaClock, FaArrowRight } from 'react-icons/fa';
+import { ClockIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 const ProtocolCard = ({ protocol, onSelect }) => {
     return (
@@ -39,7 +39,7 @@ const ProtocolCard = ({ protocol, onSelect }) => {
                 
                 <CardFooter>
                     <CardDuration>
-                        <FaClock />
+                        <ClockIcon />
                         <span>{protocol.duration}</span>
                     </CardDuration>
                     <RunButton 
@@ -48,7 +48,7 @@ const ProtocolCard = ({ protocol, onSelect }) => {
                         whileTap={{ scale: 0.95 }}
                     >
                         <span>Run Protocol</span>
-                        <FaArrowRight />
+                        <ArrowRightIcon />
                     </RunButton>
                 </CardFooter>
             </CardContent>

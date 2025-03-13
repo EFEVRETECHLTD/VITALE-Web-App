@@ -34,7 +34,7 @@ app.use(compression()); // Compress responses
 // Rate limiting
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Increased from 100 to 1000 requests per windowMs to handle hundreds of users
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   message: 'Too many requests from this IP, please try again after 15 minutes'
@@ -47,7 +47,7 @@ app.use('/api/', apiLimiter);
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? [process.env.FRONTEND_URL] // In production, only allow the frontend URL
-    : ['http://localhost:3000', 'http://localhost:3002', 'http://192.168.10.110:3000'],
+    : ['http://localhost:3000', 'http://localhost:3002', 'http://192.168.10.110:3000', 'http://192.168.10.110:3001', 'http://192.168.10.110:3002'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
   optionsSuccessStatus: 204
@@ -365,6 +365,15 @@ app.get('/api/protocols', async (req, res) => {
               profileImage: authorUser.profileImage
             };
           }
+        }
+        
+        // Ensure worksForMeCount and worksForMeUsers are initialized
+        if (!protocol.worksForMeCount) {
+          protocol.worksForMeCount = 0;
+        }
+        
+        if (!protocol.worksForMeUsers) {
+          protocol.worksForMeUsers = [];
         }
         
         if (protocolReviews.length > 0) {
@@ -804,6 +813,212 @@ app.put('/api/protocols/:id/reviews/:reviewId', authenticateToken, async (req, r
   }
 });
 
+// Get user's bookmarked protocols (protected route)
+app.get('/api/users/me/bookmarks', authenticateToken, async (req, res) => {
+  try {
+    if (isMongoConnected) {
+      // MongoDB implementation
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // If user.bookmarks doesn't exist, initialize it
+      if (!user.bookmarks) {
+        user.bookmarks = [];
+        await user.save();
+      }
+      
+      // Get all bookmarked protocols
+      const bookmarkedProtocols = await Protocol.find({
+        _id: { $in: user.bookmarks }
+      }).populate('author', 'username displayName profileImage');
+      
+      res.status(200).json(bookmarkedProtocols);
+    } else {
+      // In-memory implementation
+      const user = db.users.find(user => user.id === req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // If user.bookmarks doesn't exist, initialize it
+      if (!user.bookmarks) {
+        user.bookmarks = [];
+      }
+      
+      // Get all bookmarked protocols
+      const bookmarkedProtocols = db.protocols.filter(protocol => 
+        user.bookmarks && user.bookmarks.includes(protocol.id)
+      );
+      
+      res.status(200).json(bookmarkedProtocols);
+    }
+  } catch (error) {
+    console.error('Error fetching bookmarked protocols:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add a protocol to user's bookmarks (protected route)
+app.post('/api/users/me/bookmarks/:protocolId', authenticateToken, async (req, res) => {
+  try {
+    if (isMongoConnected) {
+      // MongoDB implementation
+      // Find the protocol
+      const protocol = await Protocol.findOne({ 
+        $or: [{ _id: mongoose.isValidObjectId(req.params.protocolId) ? req.params.protocolId : null }, { slug: req.params.protocolId }]
+      });
+      
+      if (!protocol) {
+        return res.status(404).json({ message: 'Protocol not found' });
+      }
+      
+      // Find the user
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // If user.bookmarks doesn't exist, initialize it
+      if (!user.bookmarks) {
+        user.bookmarks = [];
+      }
+      
+      // Check if protocol is already bookmarked
+      if (user.bookmarks.includes(protocol._id)) {
+        return res.status(400).json({ message: 'Protocol already bookmarked' });
+      }
+      
+      // Add protocol to bookmarks
+      user.bookmarks.push(protocol._id);
+      await user.save();
+      
+      res.status(200).json({ message: 'Protocol bookmarked successfully' });
+    } else {
+      // In-memory implementation
+      // Find the protocol
+      const protocol = db.protocols.find(p => p.id === req.params.protocolId);
+      if (!protocol) {
+        return res.status(404).json({ message: 'Protocol not found' });
+      }
+      
+      // Find the user
+      const user = db.users.find(u => u.id === req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // If user.bookmarks doesn't exist, initialize it
+      if (!user.bookmarks) {
+        user.bookmarks = [];
+      }
+      
+      // Check if protocol is already bookmarked
+      if (user.bookmarks.includes(protocol.id)) {
+        return res.status(400).json({ message: 'Protocol already bookmarked' });
+      }
+      
+      // Add protocol to bookmarks
+      user.bookmarks.push(protocol.id);
+      
+      res.status(200).json({ message: 'Protocol bookmarked successfully' });
+    }
+  } catch (error) {
+    console.error('Error bookmarking protocol:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Remove a protocol from user's bookmarks (protected route)
+app.delete('/api/users/me/bookmarks/:protocolId', authenticateToken, async (req, res) => {
+  try {
+    console.log(`Attempting to remove bookmark for protocol: ${req.params.protocolId}`);
+    
+    if (isMongoConnected) {
+      // MongoDB implementation
+      // Find the protocol
+      const protocol = await Protocol.findOne({ 
+        $or: [{ _id: mongoose.isValidObjectId(req.params.protocolId) ? req.params.protocolId : null }, { slug: req.params.protocolId }]
+      });
+      
+      if (!protocol) {
+        console.log(`Protocol not found: ${req.params.protocolId}`);
+        return res.status(404).json({ message: 'Protocol not found' });
+      }
+      
+      // Find the user
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        console.log(`User not found: ${req.user.id}`);
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // If user.bookmarks doesn't exist, initialize it
+      if (!user.bookmarks) {
+        user.bookmarks = [];
+        await user.save();
+        console.log(`User has no bookmarks array`);
+        return res.status(400).json({ message: 'Protocol not bookmarked' });
+      }
+      
+      // Check if protocol is bookmarked
+      if (!user.bookmarks.includes(protocol._id)) {
+        console.log(`Protocol not in user's bookmarks: ${protocol._id}`);
+        return res.status(400).json({ message: 'Protocol not bookmarked' });
+      }
+      
+      // Remove protocol from bookmarks
+      user.bookmarks = user.bookmarks.filter(id => id.toString() !== protocol._id.toString());
+      await user.save();
+      console.log(`Successfully removed protocol from bookmarks: ${protocol._id}`);
+      
+      res.status(200).json({ message: 'Protocol removed from bookmarks successfully' });
+    } else {
+      // In-memory implementation
+      // Find the protocol
+      const protocol = db.protocols.find(p => p.id === req.params.protocolId);
+      if (!protocol) {
+        console.log(`Protocol not found in memory: ${req.params.protocolId}`);
+        return res.status(404).json({ message: 'Protocol not found' });
+      }
+      
+      // Find the user
+      const user = db.users.find(u => u.id === req.user.id);
+      if (!user) {
+        console.log(`User not found in memory: ${req.user.id}`);
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // If user.bookmarks doesn't exist, initialize it
+      if (!user.bookmarks) {
+        user.bookmarks = [];
+        console.log(`User has no bookmarks array in memory`);
+        return res.status(400).json({ message: 'Protocol not bookmarked' });
+      }
+      
+      console.log(`User bookmarks before removal: ${JSON.stringify(user.bookmarks)}`);
+      console.log(`Protocol ID to remove: ${protocol.id}`);
+      
+      // Check if protocol is bookmarked
+      if (!user.bookmarks.includes(protocol.id)) {
+        console.log(`Protocol not in user's bookmarks in memory: ${protocol.id}`);
+        return res.status(400).json({ message: 'Protocol not bookmarked' });
+      }
+      
+      // Remove protocol from bookmarks
+      user.bookmarks = user.bookmarks.filter(id => id !== protocol.id);
+      console.log(`User bookmarks after removal: ${JSON.stringify(user.bookmarks)}`);
+      console.log(`Successfully removed protocol from bookmarks in memory: ${protocol.id}`);
+      
+      res.status(200).json({ message: 'Protocol removed from bookmarks successfully' });
+    }
+  } catch (error) {
+    console.error('Error removing bookmark:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Add a debugging route to check protocol structure
 app.get('/api/debug/protocols', (req, res) => {
   try {
@@ -865,8 +1080,9 @@ const startServer = async () => {
   try {
     await initializeServices();
     
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);
+      console.log(`Access from other devices using: http://192.168.10.110:${PORT}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error.message);
@@ -875,3 +1091,196 @@ const startServer = async () => {
 };
 
 startServer();
+
+// Add "Works for Me" to a protocol
+app.post('/api/protocols/:id/works-for-me/add', authenticateToken, async (req, res) => {
+  try {
+    const protocolId = req.params.id;
+    const userId = req.user.id;
+
+    console.log(`Adding "Works for Me" for protocol: ${protocolId} by user: ${userId}`);
+
+    // Check if MongoDB is enabled
+    if (process.env.MONGODB_ENABLED === 'true') {
+      const Protocol = require('./models/Protocol');
+      
+      // Find the protocol
+      const protocol = await Protocol.findOne({ slug: protocolId });
+      
+      if (!protocol) {
+        return res.status(404).json({ message: 'Protocol not found' });
+      }
+      
+      // Initialize worksForMeCount if it doesn't exist
+      if (!protocol.worksForMeCount) {
+        protocol.worksForMeCount = 0;
+      }
+      
+      // Initialize worksForMeUsers if it doesn't exist
+      if (!protocol.worksForMeUsers) {
+        protocol.worksForMeUsers = [];
+      }
+      
+      // Check if user has already marked this protocol
+      if (!protocol.worksForMeUsers.includes(userId)) {
+        // Add user to the list and increment count
+        protocol.worksForMeUsers.push(userId);
+        protocol.worksForMeCount += 1;
+        
+        // Save the protocol
+        await protocol.save();
+      }
+      
+      return res.status(200).json({ 
+        message: 'Works for me added successfully',
+        worksForMeCount: protocol.worksForMeCount
+      });
+    } else {
+      // Use in-memory database
+      const { getInMemoryDB } = require('./utils/seeder');
+      const db = getInMemoryDB();
+      
+      // Find the protocol
+      const protocolIndex = db.protocols.findIndex(p => p.id === protocolId);
+      
+      if (protocolIndex === -1) {
+        return res.status(404).json({ message: 'Protocol not found' });
+      }
+      
+      const protocol = db.protocols[protocolIndex];
+      
+      // Initialize worksForMeCount if it doesn't exist
+      if (!protocol.worksForMeCount) {
+        protocol.worksForMeCount = 0;
+      }
+      
+      // Initialize worksForMeUsers if it doesn't exist
+      if (!protocol.worksForMeUsers) {
+        protocol.worksForMeUsers = [];
+      }
+      
+      // Check if user has already marked this protocol
+      if (!protocol.worksForMeUsers.includes(userId)) {
+        // Add user to the list and increment count
+        protocol.worksForMeUsers.push(userId);
+        protocol.worksForMeCount += 1;
+        
+        // Update the protocol in the list
+        db.protocols[protocolIndex] = protocol;
+      }
+      
+      return res.status(200).json({ 
+        message: 'Works for me added successfully',
+        worksForMeCount: protocol.worksForMeCount
+      });
+    }
+  } catch (error) {
+    console.error(`Error adding works for me: ${error.message}`);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Remove "Works for Me" from a protocol
+app.post('/api/protocols/:id/works-for-me/remove', authenticateToken, async (req, res) => {
+  try {
+    const protocolId = req.params.id;
+    const userId = req.user.id;
+
+    console.log(`Removing "Works for Me" for protocol: ${protocolId} by user: ${userId}`);
+
+    // Check if MongoDB is enabled
+    if (process.env.MONGODB_ENABLED === 'true') {
+      const Protocol = require('./models/Protocol');
+      
+      // Find the protocol
+      const protocol = await Protocol.findOne({ slug: protocolId });
+      
+      if (!protocol) {
+        return res.status(404).json({ message: 'Protocol not found' });
+      }
+      
+      // Check if worksForMeUsers exists and user has marked this protocol
+      if (protocol.worksForMeUsers && protocol.worksForMeUsers.includes(userId)) {
+        // Remove user from the list and decrement count
+        protocol.worksForMeUsers = protocol.worksForMeUsers.filter(id => id !== userId);
+        protocol.worksForMeCount = Math.max(0, (protocol.worksForMeCount || 1) - 1);
+        
+        // Save the protocol
+        await protocol.save();
+      }
+      
+      return res.status(200).json({ 
+        message: 'Works for me removed successfully',
+        worksForMeCount: protocol.worksForMeCount
+      });
+    } else {
+      // Use in-memory database
+      const { getInMemoryDB } = require('./utils/seeder');
+      const db = getInMemoryDB();
+      
+      // Find the protocol
+      const protocolIndex = db.protocols.findIndex(p => p.id === protocolId);
+      
+      if (protocolIndex === -1) {
+        return res.status(404).json({ message: 'Protocol not found' });
+      }
+      
+      const protocol = db.protocols[protocolIndex];
+      
+      // Check if worksForMeUsers exists and user has marked this protocol
+      if (protocol.worksForMeUsers && protocol.worksForMeUsers.includes(userId)) {
+        // Remove user from the list and decrement count
+        protocol.worksForMeUsers = protocol.worksForMeUsers.filter(id => id !== userId);
+        protocol.worksForMeCount = Math.max(0, (protocol.worksForMeCount || 1) - 1);
+        
+        // Update the protocol in the list
+        db.protocols[protocolIndex] = protocol;
+      }
+      
+      return res.status(200).json({ 
+        message: 'Works for me removed successfully',
+        worksForMeCount: protocol.worksForMeCount
+      });
+    }
+  } catch (error) {
+    console.error(`Error removing works for me: ${error.message}`);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get "Works for Me" status for a user
+app.get('/api/users/me/works-for-me', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Check if MongoDB is enabled
+    if (process.env.MONGODB_ENABLED === 'true') {
+      const Protocol = require('./models/Protocol');
+      
+      // Find all protocols that have this user in worksForMeUsers
+      const protocols = await Protocol.find({ worksForMeUsers: userId });
+      
+      // Extract protocol IDs
+      const protocolIds = protocols.map(p => p.slug);
+      
+      return res.status(200).json(protocolIds);
+    } else {
+      // Use in-memory database
+      const { getInMemoryDB } = require('./utils/seeder');
+      const db = getInMemoryDB();
+      
+      // Find all protocols that have this user in worksForMeUsers
+      const protocols = db.protocols.filter(p => 
+        p.worksForMeUsers && p.worksForMeUsers.includes(userId)
+      );
+      
+      // Extract protocol IDs
+      const protocolIds = protocols.map(p => p.id);
+      
+      return res.status(200).json(protocolIds);
+    }
+  } catch (error) {
+    console.error(`Error getting works for me status: ${error.message}`);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});

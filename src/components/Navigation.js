@@ -1,20 +1,18 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { ThemeContext } from '../ThemeContext';
 import { AuthContext } from '../contexts/AuthContext';
 import UserProfile from './UserProfile';
 import { 
-  Speedometer2, 
-  Book, 
-  PencilSquare, 
-  List, 
-  SunFill, 
-  MoonFill 
-} from 'react-bootstrap-icons';
+  ChartBarSquareIcon, 
+  BookOpenIcon, 
+  PencilSquareIcon, 
+  Bars3Icon
+} from '@heroicons/react/24/outline';
 
 const Navigation = ({ isCollapsed, toggleSidebar }) => {
-  const { theme, toggleTheme } = useContext(ThemeContext);
+  const { theme } = useContext(ThemeContext);
   const { currentUser, isAuthenticated } = useContext(AuthContext);
   const location = useLocation();
 
@@ -23,12 +21,8 @@ const Navigation = ({ isCollapsed, toggleSidebar }) => {
       {/* Add a spacer at the top to reserve space for the TopRightCorner */}
       <TopRightSpacer />
       
-      {/* User profile and theme toggle in top right */}
+      {/* User profile in top right */}
       <TopRightCorner theme={theme}>
-        <ThemeToggle onClick={toggleTheme} theme={theme}>
-          {theme?.mode === 'dark' ? <SunFill size={20} /> : <MoonFill size={20} />}
-        </ThemeToggle>
-        
         {isAuthenticated ? (
           <UserProfile />
         ) : (
@@ -68,7 +62,7 @@ const Navigation = ({ isCollapsed, toggleSidebar }) => {
           <MenuToggleItem theme={theme} isCollapsed={isCollapsed}>
             <SidebarToggleLink onClick={toggleSidebar} theme={theme} title={isCollapsed ? "Expand Menu" : "Collapse Menu"}>
               <NavIcon>
-                <List size={24} />
+                <Bars3Icon width={24} height={24} />
               </NavIcon>
               {!isCollapsed}
             </SidebarToggleLink>
@@ -80,7 +74,7 @@ const Navigation = ({ isCollapsed, toggleSidebar }) => {
           >
             <Link to="/status">
               <NavIcon>
-                <Speedometer2 size={20} />
+                <ChartBarSquareIcon width={20} height={20} />
               </NavIcon>
               {!isCollapsed && <NavText>Status</NavText>}
             </Link>
@@ -92,7 +86,7 @@ const Navigation = ({ isCollapsed, toggleSidebar }) => {
           >
             <Link to="/protocols">
               <NavIcon>
-                <Book size={20} />
+                <BookOpenIcon width={20} height={20} />
               </NavIcon>
               {!isCollapsed && <NavText>Protocol Library</NavText>}
             </Link>
@@ -105,7 +99,7 @@ const Navigation = ({ isCollapsed, toggleSidebar }) => {
             >
               <Link to="/create-protocol">
                 <NavIcon>
-                  <PencilSquare size={20} />
+                  <PencilSquareIcon width={20} height={20} />
                 </NavIcon>
                 {!isCollapsed && <NavText>Protocol Designer</NavText>}
               </Link>
@@ -312,28 +306,6 @@ const NavText = styled.span`
 const RightSection = styled.div`
   display: flex;
   align-items: center;
-`;
-
-const ThemeToggle = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  transition: background-color 0.3s ease;
-  margin-right: 15px;
-  color: ${props => props.theme?.text?.primary ?? '#212121'};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  & > svg {
-    font-size: 20px;
-  }
-  
-  &:hover {
-    background-color: #f8f8f8;
-  }
 `;
 
 const AuthLinks = styled.div`

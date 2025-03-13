@@ -1,7 +1,7 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled, { ThemeContext } from 'styled-components';
-import { FaSearch } from 'react-icons/fa';
+import styled from 'styled-components';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ThumbUpIcon, 
@@ -22,7 +22,6 @@ import 'rc-slider/assets/index.css';
 
 const ProtocolSelection = () => {
     const navigate = useNavigate();
-    const { theme } = useContext(ThemeContext);
     const { isAuthenticated } = useContext(AuthContext);
     const [protocols, setProtocols] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -31,36 +30,110 @@ const ProtocolSelection = () => {
     // Add state to track which protocols the user has marked as "Works for me"
     const [worksForMeProtocols, setWorksForMeProtocols] = useState([]);
     
+    // Add state to track which protocols the user has bookmarked
+    const [bookmarkedProtocols, setBookmarkedProtocols] = useState([]);
+    const [bookmarkedProtocolIds, setBookmarkedProtocolIds] = useState([]);
+    
+    // Function to fetch user's bookmarked protocols
+    const fetchBookmarkedProtocols = useCallback(async () => {
+        try {
+            // Get token from localStorage
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
+            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/users/me/bookmarks`;
+            const response = await fetch(apiUrl, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch bookmarked protocols');
+            }
+            
+            const data = await response.json();
+            // Extract protocol IDs from the response
+            const bookmarkedIds = data.map(protocol => protocol.id);
+            setBookmarkedProtocols(data);
+            setBookmarkedProtocolIds(bookmarkedIds);
+        } catch (err) {
+            console.error('Error fetching bookmarked protocols:', err);
+        }
+    }, []);
+    
+    // Function to fetch user's "Works for Me" protocols
+    const fetchWorksForMeProtocols = useCallback(async () => {
+        try {
+            // Get token from localStorage
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
+            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/users/me/works-for-me`;
+            const response = await fetch(apiUrl, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch "Works for Me" protocols');
+            }
+            
+            const data = await response.json();
+            setWorksForMeProtocols(data);
+        } catch (err) {
+            console.error('Error fetching "Works for Me" protocols:', err);
+        }
+    }, []);
+    
+    // Function to fetch protocols
+    const fetchProtocols = useCallback(async () => {
+        try {
+            setLoading(true);
+            // Use the current hostname instead of hardcoded localhost
+            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols`;
+            const response = await fetch(apiUrl);
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch protocols');
+            }
+            
+            const data = await response.json();
+            
+            // Ensure each protocol has a worksForMeCount field
+            const protocolsWithWorksForMe = data.map(protocol => ({
+                ...protocol,
+                worksForMeCount: protocol.worksForMeCount || 0,
+                worksForMeUsers: protocol.worksForMeUsers || []
+            }));
+            
+            setProtocols(protocolsWithWorksForMe);
+        } catch (err) {
+            console.error('Error fetching protocols:', err);
+            setError('Failed to load protocols. Please try again later.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+    
     // Fetch protocols from the API
     useEffect(() => {
-        const fetchProtocols = async () => {
-            try {
-                setLoading(true);
-                // Use the current hostname instead of hardcoded localhost
-                const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols`;
-                const response = await fetch(apiUrl);
-                
-                if (!response.ok) {
-                    throw new Error('Failed to fetch protocols');
-                }
-                
-                const data = await response.json();
-                setProtocols(data);
-            } catch (err) {
-                console.error('Error fetching protocols:', err);
-                setError('Failed to load protocols. Please try again later.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        
         fetchProtocols();
-    }, []);
+        
+        // If user is authenticated, fetch their bookmarked protocols
+        if (isAuthenticated) {
+            fetchBookmarkedProtocols();
+            fetchWorksForMeProtocols();
+        }
+        
+        // No polling interval anymore - we'll fetch on filter changes instead
+        return () => {}; // Empty cleanup function
+    }, [isAuthenticated, fetchWorksForMeProtocols, fetchBookmarkedProtocols, fetchProtocols]);
     
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedFilters, setSelectedFilters] = useState({
-        averageRatingScore: false,
         efficiency: false,
         consistency: false,
         accuracy: false,
@@ -69,13 +142,11 @@ const ProtocolSelection = () => {
         scalability: false,
         datePublished: false,
         worksForMe: false,
-        protocolVariants: false,
-        protocolBugs: false
+        protocolVariants: false
     });
     
     // Rating range filters
     const [ratingRanges, setRatingRanges] = useState({
-        averageRatingScore: { min: 0, max: 5 },
         efficiency: { min: 0, max: 5 },
         consistency: { min: 0, max: 5 },
         accuracy: { min: 0, max: 5 },
@@ -95,8 +166,20 @@ const ProtocolSelection = () => {
         } else {
             setActiveTab(tabName);
         }
+        
+        // Refresh data when switching tabs
+        fetchProtocols();
+        if (isAuthenticated) {
+            fetchWorksForMeProtocols();
+            
+            // If switching to the "saved" tab, refresh bookmarked protocols
+            if (tabName === 'saved') {
+                fetchBookmarkedProtocols();
+            }
+        }
     };
 
+    // Replace sortConfig with the original sortBy and sortDirection
     const [sortBy, setSortBy] = useState('name'); // 'name', 'author', 'date', 'rating'
     const [sortDirection, setSortDirection] = useState('asc');
     const [currentPage, setCurrentPage] = useState(1);
@@ -130,20 +213,13 @@ const ProtocolSelection = () => {
         .filter(p => {
             // Filter by tab
             if (activeTab === 'drafted') return p.status === 'draft';
-            if (activeTab === 'saved') return p.status === 'saved';
+            if (activeTab === 'saved') return bookmarkedProtocolIds.includes(p.id); // Show bookmarked protocols
             if (activeTab === 'published') return p.status === 'published';
             return true; // null tab (show all)
         })
         .filter(p => selectedCategory === 'all' || p.category === selectedCategory)
         .filter(p => {
             // Apply scoring type filters with range filtering
-            if (selectedFilters.averageRatingScore) {
-                const rating = parseFloat(p.rating || 0);
-                if (rating < ratingRanges.averageRatingScore.min || rating > ratingRanges.averageRatingScore.max) {
-                    return false;
-                }
-            }
-            
             if (selectedFilters.efficiency) {
                 const efficiency = parseFloat(p.efficiency || 0);
                 if (efficiency < ratingRanges.efficiency.min || efficiency > ratingRanges.efficiency.max) {
@@ -226,6 +302,9 @@ const ProtocolSelection = () => {
             case 'rating':
                 comparison = parseFloat(a.rating || 0) - parseFloat(b.rating || 0);
                 break;
+            case 'worksForMe':
+                comparison = (a.worksForMeCount || 0) - (b.worksForMeCount || 0);
+                break;
             default:
                 comparison = a.name.localeCompare(b.name);
         }
@@ -265,19 +344,34 @@ const ProtocolSelection = () => {
         }
     };
 
+    // Function to toggle filters and refresh data
     const toggleFilter = (filter) => {
-        setSelectedFilters(prev => ({
-            ...prev,
-            [filter]: !prev[filter]
-        }));
+        setSelectedFilters(prev => {
+            const newFilters = { ...prev, [filter]: !prev[filter] };
+            
+            // Refresh data when any filter is toggled
+            fetchProtocols();
+            if (isAuthenticated) {
+                fetchWorksForMeProtocols();
+            }
+            
+            return newFilters;
+        });
     };
 
+    // Restore the original toggleSort function and remove handleSort
     const toggleSort = (field) => {
         if (sortBy === field) {
             setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
         } else {
             setSortBy(field);
             setSortDirection('asc');
+        }
+        
+        // Refresh data when sorting is changed
+        fetchProtocols();
+        if (isAuthenticated) {
+            fetchWorksForMeProtocols();
         }
     };
 
@@ -288,7 +382,6 @@ const ProtocolSelection = () => {
 
     const clearFilters = () => {
         setSelectedFilters({
-            averageRatingScore: false,
             efficiency: false,
             consistency: false,
             accuracy: false,
@@ -297,9 +390,14 @@ const ProtocolSelection = () => {
             scalability: false,
             datePublished: false,
             worksForMe: false,
-            protocolVariants: false,
-            protocolBugs: false
+            protocolVariants: false
         });
+        
+        // Refresh data when filters are cleared
+        fetchProtocols();
+        if (isAuthenticated) {
+            fetchWorksForMeProtocols();
+        }
     };
 
     const handleCloseProtocol = () => {
@@ -714,7 +812,12 @@ const ProtocolSelection = () => {
     const handleSearchSubmit = (e) => {
         e.preventDefault();
         setSearchTerm(searchInput);
-        setCurrentPage(1); // Reset to first page when searching
+        
+        // Refresh data when performing a search
+        fetchProtocols();
+        if (isAuthenticated) {
+            fetchWorksForMeProtocols();
+        }
     };
 
     // Add a function to clear the search
@@ -747,41 +850,187 @@ const ProtocolSelection = () => {
             const hasMarked = worksForMeProtocols.includes(protocolId);
             
             if (hasMarked) {
-                // Remove the mark
+                // Remove the mark locally
                 setWorksForMeProtocols(prev => prev.filter(id => id !== protocolId));
                 
-                // Decrease the count
-                protocol.worksForMeCount = (protocol.worksForMeCount || 1) - 1;
+                // Decrease the count locally
+                protocol.worksForMeCount = Math.max(0, (protocol.worksForMeCount || 1) - 1);
                 
                 // Update the protocol in the list
                 updatedProtocols[protocolIndex] = protocol;
                 setProtocols(updatedProtocols);
                 
-                // You would typically make an API call here to update the server
-                // const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/remove`;
-                // await fetch(apiUrl, { method: 'POST' });
+                // Make API call to update the server
+                const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/remove`;
+                const response = await fetch(apiUrl, { 
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
                 
-                // Remove the alert
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Works for me removed successfully:', data);
+                    
+                    // Update the count with the server value
+                    protocol.worksForMeCount = data.worksForMeCount;
+                    updatedProtocols[protocolIndex] = protocol;
+                    setProtocols(updatedProtocols);
+                    
+                    // Trigger an immediate fetch to update all protocols
+                    fetchProtocols();
+                }
             } else {
-                // Add the mark
+                // Add the mark locally
                 setWorksForMeProtocols(prev => [...prev, protocolId]);
                 
-                // Increase the count
+                // Increase the count locally
                 protocol.worksForMeCount = (protocol.worksForMeCount || 0) + 1;
                 
                 // Update the protocol in the list
                 updatedProtocols[protocolIndex] = protocol;
                 setProtocols(updatedProtocols);
                 
-                // You would typically make an API call here to update the server
-                // const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/add`;
-                // await fetch(apiUrl, { method: 'POST' });
+                // Make API call to update the server
+                const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/add`;
+                const response = await fetch(apiUrl, { 
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
                 
-                // Remove the alert
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Works for me added successfully:', data);
+                    
+                    // Update the count with the server value
+                    protocol.worksForMeCount = data.worksForMeCount;
+                    updatedProtocols[protocolIndex] = protocol;
+                    setProtocols(updatedProtocols);
+                    
+                    // Trigger an immediate fetch to update all protocols
+                    fetchProtocols();
+                }
             }
         } catch (err) {
             console.error('Error updating "Works for me" status:', err);
             // Just log the error instead of showing an alert
+        }
+    };
+
+    // Function to handle bookmark button click
+    const handleBookmarkClick = async (e, protocolId) => {
+        e.stopPropagation(); // Prevent triggering the row click
+        
+        // Check if user is authenticated
+        if (!isAuthenticated) {
+            alert('Please log in to bookmark protocols');
+            return;
+        }
+        
+        try {
+            // Get token from localStorage
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in to bookmark protocols');
+                return;
+            }
+            
+            // Check if protocol is already bookmarked
+            const isBookmarked = bookmarkedProtocols.includes(protocolId);
+            
+            // Construct API URL based on whether we're adding or removing the bookmark
+            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/users/me/bookmarks/${protocolId}`;
+            
+            console.log(`${isBookmarked ? 'Removing' : 'Adding'} bookmark for protocol: ${protocolId}`);
+            
+            const response = await fetch(apiUrl, {
+                method: isBookmarked ? 'DELETE' : 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const responseData = await response.json();
+            
+            if (!response.ok) {
+                console.error('Bookmark operation failed:', responseData);
+                throw new Error(`Failed to ${isBookmarked ? 'remove' : 'add'} bookmark: ${responseData.message || 'Unknown error'}`);
+            }
+            
+            console.log('Bookmark operation successful:', responseData);
+            
+            // Update local state
+            if (isBookmarked) {
+                setBookmarkedProtocols(prev => prev.filter(id => id !== protocolId));
+                console.log(`Removed ${protocolId} from bookmarkedProtocols state`);
+            } else {
+                setBookmarkedProtocols(prev => [...prev, protocolId]);
+                console.log(`Added ${protocolId} to bookmarkedProtocols state`);
+            }
+        } catch (err) {
+            console.error('Error updating bookmark status:', err);
+            alert(`Error: ${err.message}`);
+        }
+    };
+
+    // Function to handle share button click
+    const handleShareClick = async (e, protocol) => {
+        e.stopPropagation(); // Prevent triggering the row click
+        
+        // Create the share URL
+        const shareUrl = `${window.location.origin}/protocols/${protocol.id}`;
+        const shareTitle = `VITALE Protocol: ${protocol.name}`;
+        const shareText = `Check out this protocol: ${protocol.name}`;
+        
+        // Try to use the Web Share API if available
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: shareTitle,
+                    text: shareText,
+                    url: shareUrl,
+                });
+                console.log('Protocol shared successfully');
+            } catch (error) {
+                console.error('Error sharing protocol:', error);
+                fallbackShare(shareUrl);
+            }
+        } else {
+            // Fallback for browsers that don't support the Web Share API
+            fallbackShare(shareUrl);
+        }
+    };
+    
+    // Fallback share method - copy to clipboard
+    const fallbackShare = (shareUrl) => {
+        try {
+            // Create a temporary input element
+            const tempInput = document.createElement('input');
+            tempInput.value = shareUrl;
+            document.body.appendChild(tempInput);
+            
+            // Select and copy the link
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            
+            // Show success message
+            alert('Link copied to clipboard! You can now share it.');
+        } catch (error) {
+            console.error('Error copying to clipboard:', error);
+            alert(`Share this link: ${shareUrl}`);
+        }
+    };
+
+    // Function to handle manual refresh - keeping this for potential future use
+    const handleRefresh = () => {
+        fetchProtocols();
+        if (isAuthenticated) {
+            fetchWorksForMeProtocols();
+            fetchBookmarkedProtocols();
         }
     };
 
@@ -855,22 +1104,6 @@ const ProtocolSelection = () => {
                         <ScoringTypeSection>
                             <SectionTitle>SCORING TYPE</SectionTitle>
                             <FilterCheckboxes>
-                                <FilterCheckbox>
-                                    <input 
-                                        type="checkbox" 
-                                        id="averageRatingScore" 
-                                        checked={selectedFilters.averageRatingScore}
-                                        onChange={() => toggleFilter('averageRatingScore')}
-                                    />
-                                    <label htmlFor="averageRatingScore">Average Rating Score</label>
-                                    {selectedFilters.averageRatingScore && (
-                                        <RangeSlider 
-                                            category="averageRatingScore" 
-                                            range={ratingRanges.averageRatingScore} 
-                                            onChange={handleRangeChange} 
-                                        />
-                                    )}
-                                </FilterCheckbox>
                                 <FilterCheckbox>
                                     <input 
                                         type="checkbox" 
@@ -1003,20 +1236,7 @@ const ProtocolSelection = () => {
                             </FilterCheckboxes>
                         </AttributeProtocolSection>
                         
-                        <ProtocolContributionSection>
-                            <SectionTitle>PROTOCOL CONTRIBUTION</SectionTitle>
-                            <FilterCheckboxes>
-                                <FilterCheckbox>
-                                    <input 
-                                        type="checkbox" 
-                                        id="protocolBugs" 
-                                        checked={selectedFilters.protocolBugs}
-                                        onChange={() => toggleFilter('protocolBugs')}
-                                    />
-                                    <label htmlFor="protocolBugs">Protocol Bugs</label>
-                                </FilterCheckbox>
-                            </FilterCheckboxes>
-                        </ProtocolContributionSection>
+                        {/* Protocol Contribution section removed as requested */}
                         
                         <ClearFiltersButton 
                             onClick={clearFilters} 
@@ -1024,32 +1244,38 @@ const ProtocolSelection = () => {
                         >
                             Clear Applied Filters
                         </ClearFiltersButton>
+                        
                     </FiltersSection>
                 </FiltersWrapper>
                 
+                
                 <ContentWrapper>
-                    <SearchContainer>
-                        <form onSubmit={handleSearchSubmit}>
-                            <SearchInput 
-                                type="text" 
-                                placeholder="Search protocols..." 
-                                value={searchInput}
-                                onChange={handleSearchInputChange}
-                            />
-                            {searchInput && (
-                                <ClearButton 
-                                    type="button" 
-                                    onClick={clearSearch}
-                                    title="Clear search"
-                                >
-                                    ×
-                                </ClearButton>
-                            )}
-                            <SearchButton type="submit" title="Search">
-                                <FaSearch />
-                            </SearchButton>
-                        </form>
-                    </SearchContainer>
+                    {/* Search and filter section */}
+                    <SearchAndFilterSection>
+                        <SearchContainer>
+                            <form onSubmit={handleSearchSubmit}>
+                                <SearchInput 
+                                    type="text" 
+                                    placeholder="Search protocols..." 
+                                    value={searchInput}
+                                    onChange={handleSearchInputChange}
+                                />
+                                <SearchButton type="submit">
+                                    <MagnifyingGlassIcon width={20} height={20} />
+                                </SearchButton>
+                                {searchTerm && (
+                                    <ClearSearchButton type="button" onClick={clearSearch}>
+                                        ×
+                                    </ClearSearchButton>
+                                )}
+                            </form>
+                        </SearchContainer>
+                        
+                        <FilterContainer>
+                            {/* Filter buttons */}
+                            {/* Works for Me filter button removed as requested */}
+                        </FilterContainer>
+                    </SearchAndFilterSection>
                     
                     <ResultsCount>
                         {filteredProtocols.length === 0 ? 'No protocols found' : 
@@ -1106,12 +1332,18 @@ const ProtocolSelection = () => {
                                                                         <span style={{ color: '#212121', marginLeft: '3px' }}>{protocol.worksForMeCount} people</span>
                                                                     </div>
                                                                 )}
+                                                                {selectedFilters.bookmarked && bookmarkedProtocols.includes(protocol.id) && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'row', marginRight: '15px', marginBottom: '8px' }}>
+                                                                        <BookmarkIcon size={0.5} color="#5A8DEE" style={{ marginRight: '3px' }} />
+                                                                        <span style={{ color: '#5A8DEE' }}>Bookmarked</span>
+                                                                    </div>
+                                                                )}
                                                                 {selectedFilters.efficiency && (
                                                                     <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
                                                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                                                             <span style={{ color: '#757575', marginRight: '5px' }}>Efficiency:</span>
-                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.efficiency || 0).toFixed(1)}</span>
-                                                                            <StarIcon size={0.5} color="#F9D100" />
+                                                                            <span style={{ color: '#212121' }}>{parseFloat(protocol.efficiency || 0).toFixed(1)}/5</span>
+                                                                            
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -1119,8 +1351,7 @@ const ProtocolSelection = () => {
                                                                     <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
                                                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                                                             <span style={{ color: '#757575', marginRight: '5px' }}>Consistency:</span>
-                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.consistency || 0).toFixed(1)}</span>
-                                                                            <StarHalfIcon size={0.5} color="#F9D100" />
+                                                                            <span style={{ color: '#212121' }}>{parseFloat(protocol.consistency || 0).toFixed(1)}/5</span>
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -1128,8 +1359,7 @@ const ProtocolSelection = () => {
                                                                     <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
                                                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                                                             <span style={{ color: '#757575', marginRight: '5px' }}>Accuracy:</span>
-                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.accuracy || 0).toFixed(1)}</span>
-                                                                            <StarOutlineIcon size={0.5} color="#F9D100" />
+                                                                            <span style={{ color: '#212121' }}>{parseFloat(protocol.accuracy || 0).toFixed(1)}/5</span>
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -1137,8 +1367,7 @@ const ProtocolSelection = () => {
                                                                     <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
                                                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                                                             <span style={{ color: '#757575', marginRight: '5px' }}>Safety:</span>
-                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.safety || 0).toFixed(1)}</span>
-                                                                            <StarOutlineIcon size={0.5} color="#F9D100" />
+                                                                            <span style={{ color: '#212121' }}>{parseFloat(protocol.safety || 0).toFixed(1)}/5</span>
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -1146,8 +1375,7 @@ const ProtocolSelection = () => {
                                                                     <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
                                                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                                                             <span style={{ color: '#757575', marginRight: '5px' }}>Ease of Execution:</span>
-                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.easeOfExecution || 0).toFixed(1)}</span>
-                                                                            <StarHalfIcon size={0.5} color="#F9D100" />
+                                                                            <span style={{ color: '#212121' }}>{parseFloat(protocol.easeOfExecution || 0).toFixed(1)}/5</span>
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -1155,17 +1383,7 @@ const ProtocolSelection = () => {
                                                                     <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
                                                                         <div style={{ display: 'flex', alignItems: 'center' }}>
                                                                             <span style={{ color: '#757575', marginRight: '5px' }}>Scalability:</span>
-                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.scalability || 0).toFixed(1)}</span>
-                                                                            <StarIcon size={0.5} color="#F9D100" />
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                                {selectedFilters.averageRatingScore && (
-                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Average Rating:</span>
-                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.rating || 0).toFixed(1)}</span>
-                                                                            <StarIcon size={0.5} color="#F9D100" />
+                                                                            <span style={{ color: '#212121' }}>{parseFloat(protocol.scalability || 0).toFixed(1)}/5</span>
                                                                         </div>
                                                                     </div>
                                                                 )}
@@ -1186,9 +1404,17 @@ const ProtocolSelection = () => {
                                             <DateCell>{protocol.datePublished} at {protocol.publishTime}</DateCell>
                                             <RatingCell>
                                                 <RatingStars onClick={(e) => handleStarClick(e, protocol.id)}>
-                                                    <StarRating category="rating" value={parseFloat(protocol.rating || 0)} onChange={handleRatingChange} />
+                                                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                        <StarOutlineIcon 
+                                                            style={{ 
+                                                                color: "#212121",
+                                                                fontSize: '1rem',
+                                                                marginRight: '0.25rem'
+                                                            }} 
+                                                        />
+                                                        <span style={{ color: '#212121' }}>{parseFloat(protocol.rating || 0).toFixed(1)}/5</span>
+                                                    </div>
                                                 </RatingStars>
-                                                <RatingValue>{parseFloat(protocol.rating || 0).toFixed(1)} / 5.0</RatingValue>
                                             </RatingCell>
                                         </TableRow>
                                     ))
@@ -1273,13 +1499,21 @@ const ProtocolSelection = () => {
                                     color={worksForMeProtocols.includes(selectedProtocol.id) ? '#00BCD4' : 'currentColor'} 
                                 />
                             </ActionButton>
-                            <ActionButton onClick={() => alert('Bookmark clicked!')}>
-                                <BookmarkIcon size={1.2} />
+                            <ActionButton 
+                                onClick={(e) => handleBookmarkClick(e, selectedProtocol.id)}
+                                style={{
+                                    color: bookmarkedProtocols.includes(selectedProtocol.id) ? '#5A8DEE' : '#757575'
+                                }}
+                            >
+                                <BookmarkIcon 
+                                    size={1.2} 
+                                    color={bookmarkedProtocols.includes(selectedProtocol.id) ? '#5A8DEE' : 'currentColor'} 
+                                />
                             </ActionButton>
                             <ActionButton onClick={(e) => handleStarClick(e, selectedProtocol.id)}>
                                 <StarIcon size={1.2} color="#F9D100" />
                             </ActionButton>
-                            <ActionButton onClick={() => alert('Share clicked!')}>
+                            <ActionButton onClick={(e) => handleShareClick(e, selectedProtocol)}>
                                 <ShareIcon size={1.2} />
                             </ActionButton>
                             <ActionButton onClick={handleCloseProtocol} style={{ color: '#757575' }}>
@@ -1666,6 +1900,7 @@ const ProtocolSelection = () => {
                         </ReviewSection>
                     )}
                     
+                    
                     {/* Add Reviews section to the protocol detail view */}
                     {viewMode === 'protocol' && (
                         <>
@@ -1733,16 +1968,14 @@ const ProtocolSelection = () => {
                                                             {review.user?.role === 'admin' ? 'Lab Director' : 'Lab Technician'}
                                                             <span style={{ margin: '0 0.5rem' }}>•</span>
                                                             <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                {[1, 2, 3, 4, 5].map((star) => (
-                                                                    <StarIcon 
-                                                                        key={star} 
-                                                                        style={{ 
-                                                                            color: star <= review.rating ? "#F9D100" : "#DDD",
-                                                                            fontSize: '1rem',
-                                                                            marginRight: '0.125rem'
-                                                                        }} 
-                                                                    />
-                                                                ))}
+                                                                <StarOutlineIcon 
+                                                                    style={{ 
+                                                                        color: "#212121",
+                                                                        fontSize: '1rem',
+                                                                        marginRight: '0.25rem'
+                                                                    }} 
+                                                                />
+                                                                <span style={{ color: '#212121' }}>{review.rating}/5</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1766,7 +1999,7 @@ const ProtocolSelection = () => {
                                                             fontSize: '0.875rem', 
                                                             fontWeight: 'bold',
                                                             marginBottom: '0.5rem',
-                                                            color: theme?.text?.primary || '#212121'
+                                                            color: '#212121'
                                                         }}>
                                                             Attachments:
                                                         </div>
@@ -1785,7 +2018,7 @@ const ProtocolSelection = () => {
                                                                         height: '100px',
                                                                         objectFit: 'cover',
                                                                         borderRadius: '4px',
-                                                                        border: `1px solid ${theme?.border?.light || '#E0E0E0'}`
+                                                                        border: '1px solid #E0E0E0'
                                                                     }}
                                                                     onClick={() => window.open(url, '_blank')}
                                                                 />
@@ -1941,13 +2174,13 @@ const Header = styled.div`
     justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
-    border-bottom: 1px solid ${props => props.theme?.border?.light ?? '#E0E0E0'};
+    border-bottom: 1px solid #E0E0E0;
 `;
 
 const Title = styled.h1`
-    font-size: ${({ theme }) => theme.typography?.fontSize?.xl || '1.5rem'};
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.bold || 700};
-    color: ${({ theme }) => theme.text?.primary || '#212121'};
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #212121;
     margin: 0;
 `;
 
@@ -1956,17 +2189,17 @@ const CreateButton = styled.button`
     align-items: center;
     gap: 8px;
     padding: 8px 16px;
-    background-color: ${props => props.theme.primary};
+    background-color: #5A8DEE;
     color: white;
     border: none;
     border-radius: 4px;
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
+    font-size: 0.875rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
-    
+    transition: background-color 0.15s ease, color 0.15s ease;
+                            
     &:hover {
-        background-color: ${props => props.theme.primaryDark};
+        background-color: #4a7fd9;
     }
 `;
 
@@ -1983,7 +2216,7 @@ const LoadingSpinner = styled.div`
     height: 40px;
     border: 4px solid rgba(0, 0, 0, 0.1);
     border-radius: 50%;
-    border-top-color: ${props => props.theme.primary};
+    border-top-color: #5A8DEE;
     animation: spin 1s ease-in-out infinite;
     margin-bottom: 16px;
     
@@ -1996,7 +2229,7 @@ const LoadingSpinner = styled.div`
 
 const LoadingText = styled.p`
     font-size: 16px;
-    color: ${props => props.theme.textSecondary};
+    color: #757575;
 `;
 
 const ErrorContainer = styled.div`
@@ -2027,8 +2260,8 @@ const RetryButton = styled.button`
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
-    
+    transition: background-color 0.15s ease, color 0.15s ease;
+                            
     &:hover {
         background-color: #b71c1c;
     }
@@ -2037,7 +2270,7 @@ const RetryButton = styled.button`
 const FiltersAndContentWrapper = styled.div`
     display: flex;
     flex-direction: row;
-    gap: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
+    gap: 1.5rem;
     width: 100%;
     margin-top: 0;
     padding-top: 0;
@@ -2059,37 +2292,37 @@ const FiltersWrapper = styled.div`
 
 const ContentWrapper = styled.div`
     flex: 1;
-    padding: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
+    padding: 1.5rem;
     overflow-y: auto;
     width: calc(100% - 250px);
     background-color: #FFFFFF;
 `;
 
 const FiltersSection = styled.div`
-    padding: ${({ theme }) => theme.spacing?.md || '1rem'};
+    padding: 1rem;
     background-color: #FFFFFF;
 `;
 
 const ProtocolTypeSection = styled.div`
-    margin-bottom: ${({ theme }) => theme.spacing?.md || '1rem'};
+    margin-bottom: 1rem;
 `;
 
 const ScoringTypeSection = styled.div`
-    margin-bottom: ${({ theme }) => theme.spacing?.md || '1rem'};
+    margin-bottom: 1rem;
 `;
 
 const AttributeProtocolSection = styled.div`
-    margin-bottom: ${({ theme }) => theme.spacing?.md || '1rem'};
+    margin-bottom: 1rem;
 `;
 
 const ProtocolContributionSection = styled.div`
-    margin-bottom: ${({ theme }) => theme.spacing?.md || '1rem'};
+    margin-bottom: 1rem;
 `;
 
 const SectionTitle = styled.h4`
-    margin-bottom: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
-    font-size: ${({ theme }) => theme.typography?.fontSize?.xs || '0.75rem'};
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.bold || 700};
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
     color: #757575;
     text-transform: uppercase;
 `;
@@ -2097,16 +2330,16 @@ const SectionTitle = styled.h4`
 const FilterCheckboxes = styled.div`
     display: flex;
     flex-direction: column;
-    gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    gap: 0.25rem;
 `;
 
 const FilterCheckbox = styled.div`
     display: flex;
     flex-direction: row;
-    align-items: center; /* Changed from flex-start to center for vertical alignment */
+    align-items: center;
     flex-wrap: wrap;
     margin-bottom: 8px;
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
+    font-size: 0.875rem;
     color: #212121;
     
     input[type="checkbox"] {
@@ -2144,11 +2377,11 @@ const FilterCheckbox = styled.div`
     }
     
     label {
-        margin-left: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+        margin-left: 0.25rem;
         cursor: pointer;
         display: flex;
         align-items: center;
-        min-height: 16px; /* Match the height of the checkbox */
+        min-height: 16px;
         color: #212121;
     }
     
@@ -2160,15 +2393,15 @@ const FilterCheckbox = styled.div`
 
 const ClearFiltersButton = styled.button`
     width: 100%;
-    padding: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
-    border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'};
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
     background-color: ${({ disabled }) => disabled ? '#F0F0F0' : '#00BCD4'};
     color: ${({ disabled }) => disabled ? '#555555' : '#FFFFFF'};
     border: none;
-    transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
-    margin-top: ${({ theme }) => theme.spacing?.md || '1rem'};
+    transition: background-color 0.15s ease, color 0.15s ease;
+    margin-top: 1rem;
     cursor: ${({ disabled }) => disabled ? 'default' : 'pointer'};
     opacity: ${({ disabled }) => disabled ? 0.7 : 1};
     
@@ -2197,12 +2430,12 @@ const SearchContainer = styled.div`
 const SearchInput = styled.input`
     width: 100%;
     padding: 0.5rem;
-    padding-left: 1rem; /* Adjusted to start text from a reasonable position */
-    padding-right: 40px;
+    padding-left: 1rem;
+    padding-right: 32px;
     border-radius: 16px;
     border: 1px solid #F0F0F0;
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    transition: border-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, box-shadow ${({ theme }) => theme.transition?.fast || '0.15s ease'};
+    font-size: 0.875rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
     background-color: #FFFFFF;
     height: 32px;
     
@@ -2213,16 +2446,17 @@ const SearchInput = styled.input`
     }
     
     &::placeholder {
-        color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+        color: #777777;
     }
 `;
 
 const SearchButton = styled.button`
     position: absolute;
-    right: 0;
-    top: 0;
-    height: 32px;
-    width: 32px;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 24px;
+    width: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2230,7 +2464,9 @@ const SearchButton = styled.button`
     border: none;
     color: #757575;
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
+    padding: 0;
+    margin: 0;
     
     &:hover {
         color: #00BCD4;
@@ -2258,17 +2494,17 @@ const TableContainer = styled.div`
 const TableHeader = styled.div`
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
-    padding: ${({ theme }) => theme.spacing?.md || '1rem'};
+    padding: 1rem;
     background-color: #FFFFFF;
     border-bottom: 1px solid #F0F0F0;
 `;
 
 const ProtocolNameHeader = styled.div`
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
+    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    gap: 0.25rem;
     color: #212121;
     
     &:hover {
@@ -2277,11 +2513,11 @@ const ProtocolNameHeader = styled.div`
 `;
 
 const AuthorHeader = styled.div`
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
+    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    gap: 0.25rem;
     color: #212121;
     
     &:hover {
@@ -2290,11 +2526,11 @@ const AuthorHeader = styled.div`
 `;
 
 const DateHeader = styled.div`
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
+    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    gap: 0.25rem;
     color: #212121;
     
     &:hover {
@@ -2303,11 +2539,11 @@ const DateHeader = styled.div`
 `;
 
 const RatingHeader = styled.div`
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
+    font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    gap: 0.25rem;
     color: #212121;
     
     &:hover {
@@ -2323,14 +2559,17 @@ const TableBody = styled.div`
 const TableRow = styled(motion.div)`
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
-    padding: ${({ theme }) => theme.spacing?.md || '1rem'};
+    padding: 1rem;
     border-bottom: 1px solid #F0F0F0;
     cursor: pointer;
-    transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
     background-color: #FFFFFF;
+    border-radius: 4px;
     
     &:hover {
-        background-color: #f8f8f8;
+        background-color: #F9FAFB;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        transform: translateY(-1px);
     }
     
     &:last-child {
@@ -2339,24 +2578,24 @@ const TableRow = styled(motion.div)`
 `;
 
 const ProtocolNameCell = styled.div`
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
+    font-weight: 500;
     color: #212121;
 `;
 
 const AuthorCell = styled.div`
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
+    font-size: 0.875rem;
     color: #212121;
 `;
 
 const DateCell = styled.div`
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
+    font-size: 0.875rem;
     color: #212121;
 `;
 
 const RatingCell = styled.div`
     display: flex;
     align-items: center;
-    gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    gap: 0.25rem;
 `;
 
 const RatingStars = styled.div`
@@ -2379,7 +2618,7 @@ const PaginationContainer = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: ${({ theme }) => theme.spacing?.md || '1rem'};
+    padding: 1rem;
     border-top: 1px solid #F0F0F0;
     background-color: #FFFFFF;
     
@@ -2390,7 +2629,7 @@ const PaginationContainer = styled.div`
 `;
 
 const PaginationInfo = styled.div`
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
+    font-size: 0.875rem;
     color: #212121;
 `;
 
@@ -2398,7 +2637,7 @@ const Pagination = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    gap: 0.25rem;
     flex-wrap: wrap;
     
     @media (max-width: 768px) {
@@ -2409,13 +2648,13 @@ const Pagination = styled.div`
 `;
 
 const PaginationButton = styled.button`
-    padding: ${({ theme }) => theme.spacing?.xs || '0.25rem'} ${({ theme }) => theme.spacing?.md || '0.75rem'};
-    border-radius: ${({ theme }) => theme.borderRadius?.sm || '0.25rem'};
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
     background-color: ${({ active }) => active ? '#00BCD4' : '#FFFFFF'};
     color: ${({ active }) => active ? 'white' : '#212121'};
-    transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
+    transition: background-color 0.15s ease, color 0.15s ease;
     opacity: ${({ disabled }) => disabled ? 0.5 : 1};
     cursor: ${({ disabled }) => disabled ? 'not-allowed' : 'pointer'};
     border: ${({ active }) => active ? 'none' : '1px solid #F0F0F0'};
@@ -2438,7 +2677,7 @@ const PaginationButton = styled.button`
 
 const NoResults = styled.div`
     text-align: center;
-    padding: ${({ theme }) => theme.spacing?.xl || '2rem'};
+    padding: 2rem;
     color: #212121;
 `;
 
@@ -2449,8 +2688,8 @@ const ProtocolDetailContainer = styled(motion.div)`
     right: 0;
     bottom: 0;
     background-color: #FFFFFF;
-    z-index: 1000; /* Increased from 20 to be higher than user status component */
-    padding: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
+    z-index: 1000;
+    padding: 1.5rem;
     overflow-y: auto;
     height: 100%;
 `;
@@ -2459,30 +2698,30 @@ const ProtocolDetailHeader = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: ${({ theme }) => theme.spacing?.md || '1rem'};
+    margin-bottom: 1rem;
     position: relative;
-    z-index: 100; /* Ensure buttons are clickable */
+    z-index: 100;
 `;
 
 const ProtocolDetailActions = styled.div`
     display: flex;
-    gap: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
-    z-index: 100; /* Ensure buttons are clickable */
+    gap: 0.5rem;
+    z-index: 100;
 `;
 
 const ActionButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
+    padding: 0.5rem;
     background-color: transparent;
     color: ${({ primary }) => primary ? '#00BCD4' : '#757575'};
     border: none;
     border-radius: 50%;
-    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
+    font-size: 0.875rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: all ${({ theme }) => theme.transition?.fast || '0.15s ease'};
+    transition: all 0.15s ease;
     position: relative;
     z-index: 100;
     width: 40px;
@@ -2608,20 +2847,22 @@ const RunProtocolButton = styled.button`
     color: #00BCD4; /* Turquoise color */
     border: 1px solid #e0e0e0;
     border-radius: 4px;
-    padding: 0.5rem 1.25rem;
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    transition: all 0.2s ease;\r\n    width: 100%; /* Make button fill the whole width */
+    transition: all 0.2s ease;
+    
+    /* Updated styling as requested */
+    display: flex;
+    width: 1561px;
+    padding: 6px 10px;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
     
     &:hover {
         background-color: #f8f8f8;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
     &:focus {
@@ -2677,7 +2918,7 @@ const ClearButton = styled.button`
     justify-content: center;
     background: none;
     border: none;
-    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    color: #777777;
     cursor: pointer;
     font-size: 1.25rem;
     font-weight: bold;
@@ -2692,12 +2933,66 @@ const ClearButton = styled.button`
 
 const CategoryBadge = styled.span`
     display: inline-block;
-    padding: 2px 8px;
-    background-color: rgba(58, 178, 180, 0.1);
-    color: #3ab2b4;
-    border-radius: 12px;
-    font-size: 12px;
+    padding: 0.25rem 0.5rem;
+    background-color: #F0F0F0;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+`;
+
+// Add these styled component definitions after the SearchButton component
+const SearchAndFilterSection = styled.div`
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1rem;
+    width: 100%;
+`;
+
+const ClearSearchButton = styled.button`
+    position: absolute;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 24px;
+    width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: #757575;
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 0;
+    margin: 0;
+    
+    &:hover {
+        color: #333333;
+    }
+`;
+
+const FilterContainer = styled.div`
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+`;
+
+const FilterButton = styled.button`
+    padding: 0.25rem 0.75rem;
+    border-radius: 16px;
+    font-size: 0.75rem;
     font-weight: 500;
+    background-color: ${({ active }) => active ? '#00BCD4' : '#F0F0F0'};
+    color: ${({ active }) => active ? '#FFFFFF' : '#555555'};
+    border: none;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    cursor: pointer;
+    
+    &:hover {
+        background-color: ${({ active }) => active ? '#008ba3' : '#E0E0E0'};
+    }
 `;
 
 export default ProtocolSelection;

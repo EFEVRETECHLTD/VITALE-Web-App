@@ -1,12 +1,16 @@
 import React, { useState, useContext } from 'react';
 import styled from 'styled-components';
-import { FaChevronDown, FaUser, FaSignOutAlt, FaCog, FaUserEdit } from 'react-icons/fa';
+import { 
+  ChevronDownIcon, 
+  UserIcon, 
+  ArrowRightOnRectangleIcon, 
+  Cog6ToothIcon, 
+  PencilSquareIcon 
+} from '@heroicons/react/24/outline';
 import { AuthContext } from '../contexts/AuthContext';
-import { ThemeContext } from '../ThemeContext';
 
 const UserProfile = () => {
   const { currentUser, logout } = useContext(AuthContext);
-  const { theme } = useContext(ThemeContext);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const toggleDropdown = () => {
@@ -32,28 +36,28 @@ const UserProfile = () => {
       </InfoButton>
       <UserDropdown>
         <UserAvatar>
-          <FaUser size={24} />
+          <UserIcon width={24} height={24} />
         </UserAvatar>
         <UserInfo onClick={toggleDropdown}>
           <Username>{currentUser.username || 'Username'}</Username>
           <JobPosition>{currentUser.jobPosition || 'Job Position'}</JobPosition>
           <DropdownIcon>
-            <FaChevronDown />
+            <ChevronDownIcon width={16} height={16} />
           </DropdownIcon>
         </UserInfo>
         {isDropdownOpen && (
-          <DropdownMenu theme={theme}>
+          <DropdownMenu>
             <MenuItem onClick={() => console.log('Profile clicked')}>
-              <MenuIcon><FaUserEdit /></MenuIcon>
+              <MenuIcon><PencilSquareIcon width={18} height={18} /></MenuIcon>
               <span>Edit Profile</span>
             </MenuItem>
             <MenuItem onClick={() => console.log('Settings clicked')}>
-              <MenuIcon><FaCog /></MenuIcon>
+              <MenuIcon><Cog6ToothIcon width={18} height={18} /></MenuIcon>
               <span>Settings</span>
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout}>
-              <MenuIcon><FaSignOutAlt /></MenuIcon>
+              <MenuIcon><ArrowRightOnRectangleIcon width={18} height={18} /></MenuIcon>
               <span>Logout</span>
             </MenuItem>
           </DropdownMenu>
@@ -143,7 +147,7 @@ const UserInfo = styled.div`
 
 const Username = styled.div`
   font-weight: 500;
-  color: ${props => props.theme?.text?.primary ?? '#212121'};
+  color: #212121;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -151,7 +155,7 @@ const Username = styled.div`
 
 const JobPosition = styled.div`
   font-size: 12px;
-  color: ${props => props.theme?.text?.secondary ?? '#757575'};
+  color: #757575;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -170,9 +174,9 @@ const DropdownMenu = styled.div`
   top: 100%;
   right: 0;
   width: 200px;
-  background-color: ${props => props.theme?.background?.primary ?? '#FFFFFF'};
+  background-color: #FFFFFF;
   border-radius: 4px;
-  box-shadow: ${props => props.theme?.shadow?.medium ?? '0 4px 8px rgba(0, 0, 0, 0.1)'};
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   margin-top: 8px;
   z-index: 45; /* Match container z-index */
   overflow: hidden;
@@ -184,21 +188,21 @@ const MenuItem = styled.div`
   padding: 10px 15px;
   cursor: pointer;
   transition: background-color 0.2s;
-  color: ${props => props.theme?.text?.primary ?? '#212121'};
+  color: #212121;
 
   &:hover {
-    background-color: ${props => props.theme?.background?.hover ?? '#F5F5F5'};
+    background-color: #F5F5F5;
   }
 `;
 
 const MenuIcon = styled.span`
   margin-right: 10px;
-  color: ${props => props.theme?.text?.secondary ?? '#757575'};
+  color: #757575;
 `;
 
 const Divider = styled.div`
   height: 1px;
-  background-color: ${props => props.theme?.border?.light ?? '#EEEEEE'};
+  background-color: #EEEEEE;
   margin: 5px 0;
 `;
 

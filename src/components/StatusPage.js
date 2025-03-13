@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { PlayFill, StopFill, PauseFill } from 'react-bootstrap-icons';
+import { PlayIcon, StopIcon, PauseIcon } from '@heroicons/react/24/solid';
 import './StatusPage.css';
 
 const StatusPage = () => {
@@ -297,10 +297,10 @@ const StatusPage = () => {
 
                             <div className="control-buttons">
                                 <button onClick={toggleRunning} disabled={progress >= 100}>
-                                    {isRunning ? <PauseFill size={20} /> : <PlayFill size={20} />}
+                                    {isRunning ? <PauseIcon className="pause-icon" /> : <PlayIcon className="play-icon" />}
                                 </button>
                                 <button onClick={handleStop} disabled={!isRunning || progress >= 100}>
-                                    <StopFill size={20} />
+                                    <StopIcon className="stop-icon" />
                                 </button>
                             </div>
                         </div>
