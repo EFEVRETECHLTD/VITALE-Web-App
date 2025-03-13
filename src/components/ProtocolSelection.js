@@ -28,6 +28,9 @@ const ProtocolSelection = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     
+    // Add state to track which protocols the user has marked as "Works for me"
+    const [worksForMeProtocols, setWorksForMeProtocols] = useState([]);
+    
     // Fetch protocols from the API
     useEffect(() => {
         const fetchProtocols = async () => {
@@ -179,6 +182,14 @@ const ProtocolSelection = () => {
             if (selectedFilters.scalability) {
                 const scalability = parseFloat(p.scalability || 0);
                 if (scalability < ratingRanges.scalability.min || scalability > ratingRanges.scalability.max) {
+                    return false;
+                }
+            }
+            
+            // Add Works for me filter
+            if (selectedFilters.worksForMe) {
+                // Show protocols that have been marked as "Works for me" by any user
+                if (!(p.worksForMeCount > 0)) {
                     return false;
                 }
             }
@@ -713,6 +724,67 @@ const ProtocolSelection = () => {
         setCurrentPage(1); // Reset to first page
     };
 
+    // Function to handle "Works for me" button click
+    const handleWorksForMe = async (e, protocolId) => {
+        e.stopPropagation(); // Prevent triggering the row click
+        
+        // Check if user is authenticated
+        if (!isAuthenticated) {
+            alert('Please log in to mark protocols as "Works for me"');
+            return;
+        }
+        
+        try {
+            // Find the protocol in the list
+            const updatedProtocols = [...protocols];
+            const protocolIndex = updatedProtocols.findIndex(p => p.id === protocolId);
+            
+            if (protocolIndex === -1) return;
+            
+            const protocol = updatedProtocols[protocolIndex];
+            
+            // Check if user has already marked this protocol
+            const hasMarked = worksForMeProtocols.includes(protocolId);
+            
+            if (hasMarked) {
+                // Remove the mark
+                setWorksForMeProtocols(prev => prev.filter(id => id !== protocolId));
+                
+                // Decrease the count
+                protocol.worksForMeCount = (protocol.worksForMeCount || 1) - 1;
+                
+                // Update the protocol in the list
+                updatedProtocols[protocolIndex] = protocol;
+                setProtocols(updatedProtocols);
+                
+                // You would typically make an API call here to update the server
+                // const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/remove`;
+                // await fetch(apiUrl, { method: 'POST' });
+                
+                // Remove the alert
+            } else {
+                // Add the mark
+                setWorksForMeProtocols(prev => [...prev, protocolId]);
+                
+                // Increase the count
+                protocol.worksForMeCount = (protocol.worksForMeCount || 0) + 1;
+                
+                // Update the protocol in the list
+                updatedProtocols[protocolIndex] = protocol;
+                setProtocols(updatedProtocols);
+                
+                // You would typically make an API call here to update the server
+                // const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/add`;
+                // await fetch(apiUrl, { method: 'POST' });
+                
+                // Remove the alert
+            }
+        } catch (err) {
+            console.error('Error updating "Works for me" status:', err);
+            // Just log the error instead of showing an alert
+        }
+    };
+
     return (
         <Container
             initial={{ opacity: 0 }}
@@ -917,7 +989,7 @@ const ProtocolSelection = () => {
                                         checked={selectedFilters.worksForMe}
                                         onChange={() => toggleFilter('worksForMe')}
                                     />
-                                    <label htmlFor="worksForMe">Works For Me</label>
+                                    <label htmlFor="worksForMe" style={{ color: '#212121' }}>Works For Me</label>
                                 </FilterCheckbox>
                                 <FilterCheckbox>
                                     <input 
@@ -1023,12 +1095,17 @@ const ProtocolSelection = () => {
                                                             {protocol.name}
                                                         </div>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                                            {protocol.category && (
-                                                                <CategoryBadge>{protocol.category}</CategoryBadge>
-                                                            )}
+                                                            {/* Category badges removed */}
                                                         </div>
                                                         <div style={{ marginTop: '5px' }}>
                                                             <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px', flexWrap: 'wrap' }}>
+                                                                {selectedFilters.worksForMe && protocol.worksForMeCount > 0 && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'row', marginRight: '15px', marginBottom: '8px' }}>
+                                                                        <ThumbUpIcon size={0.5} color="#00BCD4" style={{ marginRight: '3px' }} />
+                                                                        <span style={{ color: '#00BCD4' }}>Works For Me: </span>
+                                                                        <span style={{ color: '#212121', marginLeft: '3px' }}>{protocol.worksForMeCount} people</span>
+                                                                    </div>
+                                                                )}
                                                                 {selectedFilters.efficiency && (
                                                                     <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
                                                                         <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -1185,9 +1262,32 @@ const ProtocolSelection = () => {
                     <ProtocolDetailHeader>
                         <h2>{selectedProtocol.name}</h2>
                         <ProtocolDetailActions>
-                            <div>
-                                <button onClick={handleCloseProtocol}>Close</button>
-                            </div>
+                            <ActionButton 
+                                onClick={(e) => handleWorksForMe(e, selectedProtocol.id)}
+                                style={{
+                                    color: worksForMeProtocols.includes(selectedProtocol.id) ? '#00BCD4' : '#757575'
+                                }}
+                            >
+                                <ThumbUpIcon 
+                                    size={1.2} 
+                                    color={worksForMeProtocols.includes(selectedProtocol.id) ? '#00BCD4' : 'currentColor'} 
+                                />
+                            </ActionButton>
+                            <ActionButton onClick={() => alert('Bookmark clicked!')}>
+                                <BookmarkIcon size={1.2} />
+                            </ActionButton>
+                            <ActionButton onClick={(e) => handleStarClick(e, selectedProtocol.id)}>
+                                <StarIcon size={1.2} color="#F9D100" />
+                            </ActionButton>
+                            <ActionButton onClick={() => alert('Share clicked!')}>
+                                <ShareIcon size={1.2} />
+                            </ActionButton>
+                            <ActionButton onClick={handleCloseProtocol} style={{ color: '#757575' }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </ActionButton>
                         </ProtocolDetailActions>
                     </ProtocolDetailHeader>
                     <ProtocolInfo>
@@ -1224,7 +1324,7 @@ const ProtocolSelection = () => {
                             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
                                 <button
                                     style={{
-                                        backgroundColor: '#F5F5F5',
+                                        backgroundColor: '#FFFFFF',
                                         color: '#212121',
                                         border: '1px solid #E0E0E0',
                                         borderRadius: '1rem',
@@ -1237,7 +1337,7 @@ const ProtocolSelection = () => {
                                 </button>
                                 <button
                                     style={{
-                                        backgroundColor: '#F5F5F5',
+                                        backgroundColor: '#FFFFFF',
                                         color: '#212121',
                                         border: '1px solid #E0E0E0',
                                         borderRadius: '1rem',
@@ -1597,7 +1697,7 @@ const ProtocolSelection = () => {
                                                         width: '40px', 
                                                         height: '40px', 
                                                         borderRadius: '50%', 
-                                                        backgroundColor: '#E0E0E0',
+                                                        backgroundColor: '#FFFFFF',
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         justifyContent: 'center',
@@ -1703,39 +1803,36 @@ const ProtocolSelection = () => {
                                                         fontSize: '0.875rem'
                                                     }}>
                                                         {Object.entries(review.metrics).map(([key, value]) => {
-                                                            if (value > 0) {
-                                                                return (
-                                                                    <div key={key} style={{ 
-                                                                        backgroundColor: '#F5F5F5',
-                                                                        padding: '0.5rem 0.75rem',
-                                                                        borderRadius: '1rem',
+                                                            return (
+                                                                <div key={key} style={{ 
+                                                                    backgroundColor: '#FFFFFF',
+                                                                    padding: '0.5rem 0.75rem',
+                                                                    borderRadius: '1rem',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center'
+                                                                }}>
+                                                                    <span style={{ 
+                                                                        textTransform: 'capitalize',
+                                                                        color: '#616161',
+                                                                        marginRight: '0.5rem'
+                                                                    }}>
+                                                                        {key.replace(/([A-Z])/g, ' $1').trim()}:
+                                                                    </span>
+                                                                    <span style={{ 
+                                                                        fontWeight: '500',
+                                                                        color: '#212121',
                                                                         display: 'flex',
                                                                         alignItems: 'center'
                                                                     }}>
-                                                                        <span style={{ 
-                                                                            textTransform: 'capitalize',
-                                                                            color: '#616161',
-                                                                            marginRight: '0.5rem'
-                                                                        }}>
-                                                                            {key.replace(/([A-Z])/g, ' $1').trim()}:
-                                                                        </span>
-                                                                        <span style={{ 
-                                                                            fontWeight: '500',
-                                                                            color: '#212121',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center'
-                                                                        }}>
-                                                                            {value}
-                                                                            <StarIcon style={{ 
-                                                                                color: '#F9D100',
-                                                                                fontSize: '0.875rem',
-                                                                                marginLeft: '0.25rem'
-                                                                            }} />
-                                                                        </span>
-                                                                    </div>
-                                                                );
-                                                            }
-                                                            return null;
+                                                                        {value}
+                                                                        <StarIcon style={{ 
+                                                                            color: '#F9D100',
+                                                                            fontSize: '0.875rem',
+                                                                            marginLeft: '0.25rem'
+                                                                        }} />
+                                                                    </span>
+                                                                </div>
+                                                            );
                                                         })}
                                                     </div>
                                                 )}
@@ -1836,6 +1933,7 @@ const Container = styled(motion.div)`
     display: flex;
     flex-direction: column;
     flex: 1;
+    background-color: #FFFFFF;
 `;
 
 const Header = styled.div`
@@ -1944,6 +2042,7 @@ const FiltersAndContentWrapper = styled.div`
     margin-top: 0;
     padding-top: 0;
     flex: 1;
+    background-color: #FFFFFF;
     
     @media (max-width: 768px) {
         flex-direction: column;
@@ -1953,9 +2052,9 @@ const FiltersAndContentWrapper = styled.div`
 const FiltersWrapper = styled.div`
     width: 250px;
     min-width: 250px;
-    border-right: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
+    border-right: none;
     overflow-y: auto;
-    background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+    background-color: #FFFFFF;
 `;
 
 const ContentWrapper = styled.div`
@@ -1963,12 +2062,12 @@ const ContentWrapper = styled.div`
     padding: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
     overflow-y: auto;
     width: calc(100% - 250px);
-    background-color: ${({ theme }) => theme.background?.main || '#F5F5F5'};
+    background-color: #FFFFFF;
 `;
 
 const FiltersSection = styled.div`
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+    background-color: #FFFFFF;
 `;
 
 const ProtocolTypeSection = styled.div`
@@ -1991,7 +2090,7 @@ const SectionTitle = styled.h4`
     margin-bottom: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
     font-size: ${({ theme }) => theme.typography?.fontSize?.xs || '0.75rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.bold || 700};
-    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    color: #757575;
     text-transform: uppercase;
 `;
 
@@ -2008,6 +2107,7 @@ const FilterCheckbox = styled.div`
     flex-wrap: wrap;
     margin-bottom: 8px;
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
+    color: #212121;
     
     input[type="checkbox"] {
         appearance: none;
@@ -2022,8 +2122,8 @@ const FilterCheckbox = styled.div`
         margin: 0;
         
         &:checked {
-            background-color: #3ab2b4;
-            border-color: #3ab2b4;
+            background-color: #00BCD4;
+            border-color: #00BCD4;
         }
         
         &:checked::after {
@@ -2039,7 +2139,7 @@ const FilterCheckbox = styled.div`
         }
         
         &:focus {
-            box-shadow: 0 0 0 2px rgba(58, 178, 180, 0.3);
+            box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.3);
         }
     }
     
@@ -2049,6 +2149,7 @@ const FilterCheckbox = styled.div`
         display: flex;
         align-items: center;
         min-height: 16px; /* Match the height of the checkbox */
+        color: #212121;
     }
     
     & > div {
@@ -2063,7 +2164,7 @@ const ClearFiltersButton = styled.button`
     border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'};
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
-    background-color: ${({ disabled }) => disabled ? '#F0F0F0' : '#3ab2b4'};
+    background-color: ${({ disabled }) => disabled ? '#F0F0F0' : '#00BCD4'};
     color: ${({ disabled }) => disabled ? '#555555' : '#FFFFFF'};
     border: none;
     transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
@@ -2072,7 +2173,7 @@ const ClearFiltersButton = styled.button`
     opacity: ${({ disabled }) => disabled ? 0.7 : 1};
     
     &:hover {
-        background-color: ${({ disabled }) => disabled ? '#E0E0E0' : '#333333'};
+        background-color: ${({ disabled }) => disabled ? '#E0E0E0' : '#008ba3'};
     }
 `;
 
@@ -2099,16 +2200,16 @@ const SearchInput = styled.input`
     padding-left: 1rem; /* Adjusted to start text from a reasonable position */
     padding-right: 40px;
     border-radius: 16px;
-    border: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
+    border: 1px solid #F0F0F0;
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     transition: border-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, box-shadow ${({ theme }) => theme.transition?.fast || '0.15s ease'};
-    background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+    background-color: #FFFFFF;
     height: 32px;
     
     &:focus {
         outline: none;
-        border-color: #3ab2b4;
-        box-shadow: 0 0 0 2px rgba(58, 178, 180, 0.2);
+        border-color: #00BCD4;
+        box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.1);
     }
     
     &::placeholder {
@@ -2127,40 +2228,39 @@ const SearchButton = styled.button`
     justify-content: center;
     background: none;
     border: none;
-    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    color: #757575;
     cursor: pointer;
     font-size: 0.875rem;
     
     &:hover {
-        color: #3ab2b4;
+        color: #00BCD4;
     }
 `;
 
 const ResultsCount = styled.div`
     font-size: 0.75rem;
-    color: ${({ theme }) => theme.text?.secondary || '#757575'};
+    color: #757575;
     margin-top: 0.25rem;
     margin-bottom: 0.75rem;
 `;
 
 const TableContainer = styled.div`
     overflow-x: auto;
-    border: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
-    border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'};
+    border: none;
     margin-bottom: 0;
     flex: 1;
     display: flex;
     flex-direction: column;
     width: 100%;
-    background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+    background-color: #FFFFFF;
 `;
 
 const TableHeader = styled.div`
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    background-color: ${({ theme }) => theme.background?.tertiary || '#F0F0F0'};
-    border-bottom: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
+    background-color: #FFFFFF;
+    border-bottom: 1px solid #F0F0F0;
 `;
 
 const ProtocolNameHeader = styled.div`
@@ -2169,9 +2269,10 @@ const ProtocolNameHeader = styled.div`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    color: #212121;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #00BCD4;
     }
 `;
 
@@ -2181,9 +2282,10 @@ const AuthorHeader = styled.div`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    color: #212121;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #00BCD4;
     }
 `;
 
@@ -2193,9 +2295,10 @@ const DateHeader = styled.div`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    color: #212121;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #00BCD4;
     }
 `;
 
@@ -2205,9 +2308,10 @@ const RatingHeader = styled.div`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    color: #212121;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #00BCD4;
     }
 `;
 
@@ -2220,12 +2324,13 @@ const TableRow = styled(motion.div)`
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    border-bottom: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
+    border-bottom: 1px solid #F0F0F0;
     cursor: pointer;
     transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
+    background-color: #FFFFFF;
     
     &:hover {
-        background-color: ${({ theme }) => theme.background?.tertiary || '#F0F0F0'};
+        background-color: #f8f8f8;
     }
     
     &:last-child {
@@ -2235,16 +2340,17 @@ const TableRow = styled(motion.div)`
 
 const ProtocolNameCell = styled.div`
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
-    color: ${({ theme }) => theme.primary || '#00BCD4'};
+    color: #212121;
 `;
 
 const AuthorCell = styled.div`
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
+    color: #212121;
 `;
 
 const DateCell = styled.div`
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    color: #212121;
 `;
 
 const RatingCell = styled.div`
@@ -2256,17 +2362,17 @@ const RatingCell = styled.div`
 const RatingStars = styled.div`
     display: flex;
     align-items: center;
-    color: ${({ theme }) => theme.status?.warning || '#FFC107'};
+    color: #F9D100;
     cursor: pointer;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #F9D100;
     }
 `;
 
 const RatingValue = styled.span`
     margin-left: 0.5rem;
-    color: ${({ theme }) => theme.text?.secondary || '#757575'};
+    color: #212121;
 `;
 
 const PaginationContainer = styled.div`
@@ -2274,8 +2380,8 @@ const PaginationContainer = styled.div`
     justify-content: space-between;
     align-items: center;
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    border-top: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
-    background-color: ${({ theme }) => theme.background?.main || '#F5F5F5'};
+    border-top: 1px solid #F0F0F0;
+    background-color: #FFFFFF;
     
     @media (max-width: 768px) {
         flex-direction: column;
@@ -2285,7 +2391,7 @@ const PaginationContainer = styled.div`
 
 const PaginationInfo = styled.div`
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    color: #212121;
 `;
 
 const Pagination = styled.div`
@@ -2307,12 +2413,12 @@ const PaginationButton = styled.button`
     border-radius: ${({ theme }) => theme.borderRadius?.sm || '0.25rem'};
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
-    background-color: ${({ theme, active }) => active ? theme.primary || '#00BCD4' : theme.background?.tertiary || '#EEEEEE'};
-    color: ${({ theme, active }) => active ? 'white' : theme.text?.secondary || '#757575'};
+    background-color: ${({ active }) => active ? '#00BCD4' : '#FFFFFF'};
+    color: ${({ active }) => active ? 'white' : '#212121'};
     transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
     opacity: ${({ disabled }) => disabled ? 0.5 : 1};
     cursor: ${({ disabled }) => disabled ? 'not-allowed' : 'pointer'};
-    border: none;
+    border: ${({ active }) => active ? 'none' : '1px solid #F0F0F0'};
     margin: 0 2px;
     min-width: 36px;
     display: flex;
@@ -2320,28 +2426,20 @@ const PaginationButton = styled.button`
     justify-content: center;
     
     &:hover:not(:disabled) {
-        background-color: ${({ theme, active }) => active ? theme.primary || '#00BCD4' : theme.background?.tertiary || '#E0E0E0'};
-        color: ${({ theme, active }) => active ? 'white' : theme.primary || '#00BCD4'};
+        background-color: ${({ active }) => active ? '#008ba3' : '#F9F9F9'};
+        color: ${({ active }) => active ? 'white' : '#00BCD4'};
     }
     
     &:focus {
         outline: none;
-        box-shadow: 0 0 0 2px ${({ theme }) => `${theme.primary || '#00BCD4'}33` || 'rgba(0, 188, 212, 0.2)'};
+        box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.2);
     }
 `;
 
 const NoResults = styled.div`
     text-align: center;
     padding: ${({ theme }) => theme.spacing?.xl || '2rem'};
-    color: ${({ theme }) => theme.text?.secondary || '#555555'};
-    
-    h3 {
-        margin-bottom: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
-    }
-    
-    p {
-        color: ${({ theme }) => theme.text?.tertiary || '#777777'};
-    }
+    color: #212121;
 `;
 
 const ProtocolDetailContainer = styled(motion.div)`
@@ -2350,7 +2448,7 @@ const ProtocolDetailContainer = styled(motion.div)`
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: ${({ theme }) => theme.background?.main || '#F5F5F5'};
+    background-color: #FFFFFF;
     z-index: 1000; /* Increased from 20 to be higher than user status component */
     padding: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
     overflow-y: auto;
@@ -2376,25 +2474,26 @@ const ActionButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: ${({ theme }) => theme.spacing?.sm || '0.5rem'} ${({ theme }) => theme.spacing?.md || '1rem'};
-    background-color: ${({ primary, theme }) => primary ? theme.primary ?? '#00BCD4' : 'transparent'};
-    color: ${({ primary, theme }) => primary ? 'white' : theme.text?.secondary ?? '#757575'};
-    border: ${({ primary, theme }) => primary ? 'none' : `1px solid ${theme.border?.light ?? '#E0E0E0'}`};
-    border-radius: ${({ theme }) => theme.borderRadius?.sm || '0.25rem'};
+    padding: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
+    background-color: transparent;
+    color: ${({ primary }) => primary ? '#00BCD4' : '#757575'};
+    border: none;
+    border-radius: 50%;
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
     cursor: pointer;
     transition: all ${({ theme }) => theme.transition?.fast || '0.15s ease'};
     position: relative;
     z-index: 100;
+    width: 40px;
+    height: 40px;
     
     &:hover {
-        background-color: ${({ primary, theme }) => primary ? theme.primary ?? '#00BCD4' : theme.background?.tertiary ?? '#EEEEEE'};
-        opacity: 0.9;
+        background-color: #f8f8f8;
     }
     
     svg {
-        margin-right: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+        font-size: 20px;
     }
 `;
 
@@ -2505,7 +2604,7 @@ const StarButton = styled.button`
 `;
 
 const RunProtocolButton = styled.button`
-    background-color: white;
+    background-color: #FFFFFF;
     color: #00BCD4; /* Turquoise color */
     border: 1px solid #e0e0e0;
     border-radius: 4px;
@@ -2521,7 +2620,7 @@ const RunProtocolButton = styled.button`
     transition: all 0.2s ease;\r\n    width: 100%; /* Make button fill the whole width */
     
     &:hover {
-        background-color: #f8f9fa;
+        background-color: #f8f8f8;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
@@ -2543,7 +2642,7 @@ const ProtocolTypeButton = styled.button`
     display: flex;
     align-items: center;
     padding: 8px 16px;
-    background-color: ${({ active }) => active ? 'rgba(58, 178, 180, 0.1)' : 'white'};
+    background-color: ${({ active }) => active ? 'rgba(58, 178, 180, 0.1)' : '#FFFFFF'};
     color: ${({ active }) => active ? '#3ab2b4' : '#757575'};
     border: 1px solid ${({ active }) => active ? '#3ab2b4' : '#E0E0E0'};
     border-radius: 50px;
@@ -2559,7 +2658,7 @@ const ProtocolTypeButton = styled.button`
     min-width: 200px;
     
     &:hover {
-        background-color: ${({ active }) => active ? 'rgba(58, 178, 180, 0.1)' : '#F5F5F5'};
+        background-color: ${({ active }) => active ? 'rgba(58, 178, 180, 0.1)' : '#f8f8f8'};
     }
     
     svg {

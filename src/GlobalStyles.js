@@ -18,7 +18,7 @@ const GlobalStyles = createGlobalStyle`
     margin: 0;
     padding: 0;
     font-family: ${({ theme }) => theme?.typography?.fontFamily?.primary || "'Inter', 'Segoe UI', 'Roboto', sans-serif"};
-    background-color: ${({ theme }) => theme?.background?.main || (theme?.mode === 'dark' ? '#212121' : '#F5F5F5')};
+    background-color: #FFFFFF;
     color: ${({ theme }) => theme?.text?.primary || (theme?.mode === 'dark' ? '#FFFFFF' : '#212121')};
     transition: background-color ${({ theme }) => theme?.transition?.normal || '0.3s ease'}, color ${({ theme }) => theme?.transition?.normal || '0.3s ease'};
     line-height: ${({ theme }) => theme?.typography?.lineHeight?.normal || 1.5};
@@ -28,12 +28,12 @@ const GlobalStyles = createGlobalStyle`
 
   /* Global theme classes for CSS selector access */
   html.dark body {
-    background-color: ${({ theme }) => theme?.dark?.background?.main || '#212121'};
+    background-color: #FFFFFF;
     color: ${({ theme }) => theme?.dark?.text?.primary || '#FFFFFF'};
   }
 
   html.light body {
-    background-color: ${({ theme }) => theme?.light?.background?.main || '#F5F5F5'};
+    background-color: #FFFFFF;
     color: ${({ theme }) => theme?.light?.text?.primary || '#212121'};
   }
 
@@ -98,7 +98,7 @@ const GlobalStyles = createGlobalStyle`
   }
 
   ::-webkit-scrollbar-track {
-    background: ${({ theme }) => theme?.background?.secondary || (theme?.mode === 'dark' ? '#303030' : '#FFFFFF')};
+    background: #FFFFFF;
   }
 
   ::-webkit-scrollbar-thumb {

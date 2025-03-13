@@ -103,7 +103,7 @@ const InfoButton = styled.button`
   transition: all 0.2s;
 
   &:hover {
-    background-color: #f0f0f0;
+    background-color: #f8f8f8;
   }
 `;
 
@@ -125,7 +125,7 @@ const UserAvatar = styled.div`
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #e0e0e0;
+  background-color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;

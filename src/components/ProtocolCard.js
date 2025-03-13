@@ -22,7 +22,6 @@ const ProtocolCard = ({ protocol, onSelect }) => {
                         e.target.src = 'https://everyone.plos.org/wp-content/uploads/sites/5/2022/04/feature_image.png';
                     }}
                 />
-                <CardCategory>{protocol.category}</CardCategory>
             </CardImageContainer>
             
             <CardContent>
@@ -83,20 +82,6 @@ const CardImage = styled.img`
     ${Card}:hover & {
         transform: scale(1.05);
     }
-`;
-
-const CardCategory = styled.div`
-    position: absolute;
-    top: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
-    right: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
-    background-color: ${({ theme }) => theme.primary || '#0070f3'};
-    color: white;
-    padding: ${({ theme }) => theme.spacing?.xs || '0.25rem'} ${({ theme }) => theme.spacing?.sm || '0.5rem'};
-    border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'};
-    font-size: ${({ theme }) => theme.typography?.fontSize?.xs || '0.75rem'};
-    font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 `;
 
 const CardContent = styled.div`

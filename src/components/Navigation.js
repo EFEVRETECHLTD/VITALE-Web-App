@@ -132,7 +132,7 @@ const TopRightCorner = styled.div`
   align-items: center;
   padding: 10px 20px;
   z-index: 50; /* Higher than SidebarContainer */
-  background-color: ${props => props.theme?.background?.secondary ?? 'rgba(255, 255, 255, 0.9)'};
+  background-color: #FFFFFF;
   border-radius: 0 0 0 8px;
   box-shadow: ${props => props.theme?.shadow?.small ?? '0 2px 4px rgba(0, 0, 0, 0.1)'};
   pointer-events: auto; /* Make this element clickable */
@@ -154,7 +154,7 @@ const SidebarContainer = styled.nav`
   left: 0;
   height: 100vh;
   width: ${props => props.isCollapsed ? '60px' : '240px'};
-  background-color: ${props => props.theme?.background?.secondary ?? '#FFFFFF'};
+  background-color: #FFFFFF;
   color: ${props => props.theme?.text?.primary ?? '#212121'};
   box-shadow: ${props => props.theme?.shadow?.medium ?? '2px 0 5px rgba(0, 0, 0, 0.05)'};
   display: flex;
@@ -232,10 +232,10 @@ const MenuToggleItem = styled.li`
     color: ${props => props.theme?.text?.secondary ?? '#757575'};
     text-decoration: none;
     transition: all 0.3s ease;
-    background-color: transparent;
+    background-color: #FFFFFF;
     
     &:hover {
-      background-color: ${props => props.theme?.background?.hover ?? '#EEEEEE'};
+      background-color: #f8f8f8;
       color: ${props => props.theme?.primary ?? '#5A8DEE'};
     }
     
@@ -254,9 +254,10 @@ const SidebarToggleLink = styled.a`
   text-decoration: none;
   transition: all 0.3s ease;
   cursor: pointer;
+  background-color: #FFFFFF;
   
   &:hover {
-    background-color: ${props => props.theme?.background?.hover ?? '#EEEEEE'};
+    background-color: #f8f8f8;
     color: ${props => props.theme?.primary ?? '#5A8DEE'};
   }
 `;
@@ -274,10 +275,10 @@ const NavItem = styled.li`
     font-weight: ${props => props.isActive ? 'bold' : 'normal'};
     transition: color 0.3s ease;
     border-left: 4px solid ${props => props.isActive ? (props.theme?.primary ?? '#5A8DEE') : 'transparent'};
-    background-color: ${props => props.isActive ? (props.theme?.background?.activeItem ?? 'rgba(90, 141, 238, 0.1)') : 'transparent'};
+    background-color: #FFFFFF;
     
     &:hover {
-      background-color: ${props => props.theme?.background?.tertiary ?? '#EEEEEE'};
+      background-color: #f8f8f8;
       color: ${props => props.theme?.primary ?? '#5A8DEE'};
     }
   }
@@ -331,7 +332,7 @@ const ThemeToggle = styled.button`
   }
   
   &:hover {
-    background-color: ${props => props.theme?.background?.tertiary ?? '#EEEEEE'};
+    background-color: #f8f8f8;
   }
 `;
 
