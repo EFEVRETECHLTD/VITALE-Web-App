@@ -1,8 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import styled, { ThemeContext } from 'styled-components';
-import { FaSearch, FaFilter, FaChevronDown, FaPlus } from 'react-icons/fa';
-import { BsCheckSquareFill, BsSquare } from 'react-icons/bs';
+import { FaSearch } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     ThumbUpIcon, 
@@ -17,10 +16,7 @@ import {
     CheckCircleIcon,
     TabIcon
 } from './icons';
-import ProtocolCard from './ProtocolCard';
 import { AuthContext } from '../contexts/AuthContext';
-import RangeSliderInput from 'react-range-slider-input';
-import 'react-range-slider-input/dist/style.css';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
@@ -32,12 +28,17 @@ const ProtocolSelection = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     
+    // Add state to track which protocols the user has marked as "Works for me"
+    const [worksForMeProtocols, setWorksForMeProtocols] = useState([]);
+    
     // Fetch protocols from the API
     useEffect(() => {
         const fetchProtocols = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('http://localhost:3001/api/protocols');
+                // Use the current hostname instead of hardcoded localhost
+                const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols`;
+                const response = await fetch(apiUrl);
                 
                 if (!response.ok) {
                     throw new Error('Failed to fetch protocols');
@@ -119,6 +120,9 @@ const ProtocolSelection = () => {
     const [viewMode, setViewMode] = useState('protocol'); // 'protocol' or 'review'
     const [protocolReviews, setProtocolReviews] = useState([]); // Add a state for protocol reviews
 
+    // Add a new state for the input value
+    const [searchInput, setSearchInput] = useState(searchTerm);
+
     const categories = ['all', ...new Set(protocols.map(p => p.category))];
     
     // Filter protocols based on search term, category, and selected filters
@@ -182,13 +186,25 @@ const ProtocolSelection = () => {
                 }
             }
             
+            // Add Works for me filter
+            if (selectedFilters.worksForMe) {
+                // Show protocols that have been marked as "Works for me" by any user
+                if (!(p.worksForMeCount > 0)) {
+                    return false;
+                }
+            }
+            
             return true;
         })
         .filter(p => 
             p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.author.toLowerCase().includes(searchTerm.toLowerCase())
+            (typeof p.author === 'string' ? 
+                p.author.toLowerCase().includes(searchTerm.toLowerCase()) : 
+                (p.author && p.author.username ? 
+                    p.author.username.toLowerCase().includes(searchTerm.toLowerCase()) : 
+                    false))
         );
 
     // Sort protocols
@@ -200,7 +216,9 @@ const ProtocolSelection = () => {
                 comparison = a.name.localeCompare(b.name);
                 break;
             case 'author':
-                comparison = a.author.localeCompare(b.author);
+                const authorA = typeof a.author === 'string' ? a.author : (a.author && a.author.username ? a.author.username : '');
+                const authorB = typeof b.author === 'string' ? b.author : (b.author && b.author.username ? b.author.username : '');
+                comparison = authorA.localeCompare(authorB);
                 break;
             case 'date':
                 comparison = new Date(a.datePublished) - new Date(b.datePublished);
@@ -515,11 +533,11 @@ const ProtocolSelection = () => {
                         onChange={handleDragging}
                         onAfterChange={handleAfterChange}
                         disabled={isDisplayOnly}
-                        trackStyle={{ backgroundColor: '#00BCD4', height: 5 }}
+                        trackStyle={{ backgroundColor: '#3ab2b4', height: 5 }}
                         railStyle={{ backgroundColor: '#8a8a8a', height: 5 }}
                         handleStyle={[
                             {
-                                backgroundColor: '#00BCD4',
+                                backgroundColor: '#3ab2b4',
                                 border: '3px solid white',
                                 boxShadow: '0 0.125rem 0.5625rem -0.125rem rgba(0, 0, 0, 0.25)',
                                 height: 25,
@@ -527,7 +545,7 @@ const ProtocolSelection = () => {
                                 marginTop: -10,
                             },
                             {
-                                backgroundColor: '#00BCD4',
+                                backgroundColor: '#3ab2b4',
                                 border: '3px solid white',
                                 boxShadow: '0 0.125rem 0.5625rem -0.125rem rgba(0, 0, 0, 0.25)',
                                 height: 25,
@@ -555,7 +573,8 @@ const ProtocolSelection = () => {
     // Add a function to fetch reviews for a protocol
     const fetchProtocolReviews = async (protocolId) => {
         try {
-            const response = await fetch(`http://localhost:3001/api/protocols/${protocolId}/reviews`);
+            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/reviews`;
+            const response = await fetch(apiUrl);
             if (response.ok) {
                 const data = await response.json();
                 setProtocolReviews(data);
@@ -612,7 +631,8 @@ const ProtocolSelection = () => {
                 return;
             }
             
-            const response = await fetch(`http://localhost:3001/api/protocols/${selectedProtocol.id}/reviews`, {
+            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${selectedProtocol.id}/reviews`;
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -663,8 +683,9 @@ const ProtocolSelection = () => {
                 scalability: 0
             });
             
-            // Refresh protocols to get updated ratings
-            const protocolsResponse = await fetch('http://localhost:3001/api/protocols');
+            // Refresh protocols list
+            const protocolsApiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols`;
+            const protocolsResponse = await fetch(protocolsApiUrl);
             if (protocolsResponse.ok) {
                 const data = await protocolsResponse.json();
                 setProtocols(data);
@@ -684,24 +705,93 @@ const ProtocolSelection = () => {
         }
     };
 
+    // Update the search input handler
+    const handleSearchInputChange = (e) => {
+        setSearchInput(e.target.value);
+    };
+
+    // Add a handler for the search form submission
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        setSearchTerm(searchInput);
+        setCurrentPage(1); // Reset to first page when searching
+    };
+
+    // Add a function to clear the search
+    const clearSearch = () => {
+        setSearchInput('');
+        setSearchTerm('');
+        setCurrentPage(1); // Reset to first page
+    };
+
+    // Function to handle "Works for me" button click
+    const handleWorksForMe = async (e, protocolId) => {
+        e.stopPropagation(); // Prevent triggering the row click
+        
+        // Check if user is authenticated
+        if (!isAuthenticated) {
+            alert('Please log in to mark protocols as "Works for me"');
+            return;
+        }
+        
+        try {
+            // Find the protocol in the list
+            const updatedProtocols = [...protocols];
+            const protocolIndex = updatedProtocols.findIndex(p => p.id === protocolId);
+            
+            if (protocolIndex === -1) return;
+            
+            const protocol = updatedProtocols[protocolIndex];
+            
+            // Check if user has already marked this protocol
+            const hasMarked = worksForMeProtocols.includes(protocolId);
+            
+            if (hasMarked) {
+                // Remove the mark
+                setWorksForMeProtocols(prev => prev.filter(id => id !== protocolId));
+                
+                // Decrease the count
+                protocol.worksForMeCount = (protocol.worksForMeCount || 1) - 1;
+                
+                // Update the protocol in the list
+                updatedProtocols[protocolIndex] = protocol;
+                setProtocols(updatedProtocols);
+                
+                // You would typically make an API call here to update the server
+                // const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/remove`;
+                // await fetch(apiUrl, { method: 'POST' });
+                
+                // Remove the alert
+            } else {
+                // Add the mark
+                setWorksForMeProtocols(prev => [...prev, protocolId]);
+                
+                // Increase the count
+                protocol.worksForMeCount = (protocol.worksForMeCount || 0) + 1;
+                
+                // Update the protocol in the list
+                updatedProtocols[protocolIndex] = protocol;
+                setProtocols(updatedProtocols);
+                
+                // You would typically make an API call here to update the server
+                // const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/add`;
+                // await fetch(apiUrl, { method: 'POST' });
+                
+                // Remove the alert
+            }
+        } catch (err) {
+            console.error('Error updating "Works for me" status:', err);
+            // Just log the error instead of showing an alert
+        }
+    };
+
     return (
         <Container
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
         >
-            <Header>
-                <Title>Protocol Library</Title>
-                {isAuthenticated && (
-                    <CreateButton 
-                        onClick={() => navigate('/create-protocol')}
-                        theme={theme}
-                    >
-                        <FaPlus />
-                        <span>Create Protocol</span>
-                    </CreateButton>
-                )}
-            </Header>
+            {/* Header with title and create button removed */}
             
             {/* Show loading state */}
             {loading && (
@@ -899,7 +989,7 @@ const ProtocolSelection = () => {
                                         checked={selectedFilters.worksForMe}
                                         onChange={() => toggleFilter('worksForMe')}
                                     />
-                                    <label htmlFor="worksForMe">Works For Me</label>
+                                    <label htmlFor="worksForMe" style={{ color: '#212121' }}>Works For Me</label>
                                 </FilterCheckbox>
                                 <FilterCheckbox>
                                     <input 
@@ -939,16 +1029,36 @@ const ProtocolSelection = () => {
                 
                 <ContentWrapper>
                     <SearchContainer>
-                        <SearchInput 
-                            type="text" 
-                            placeholder="Search protocols..." 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <SearchIcon>
-                            <FaSearch />
-                        </SearchIcon>
+                        <form onSubmit={handleSearchSubmit}>
+                            <SearchInput 
+                                type="text" 
+                                placeholder="Search protocols..." 
+                                value={searchInput}
+                                onChange={handleSearchInputChange}
+                            />
+                            {searchInput && (
+                                <ClearButton 
+                                    type="button" 
+                                    onClick={clearSearch}
+                                    title="Clear search"
+                                >
+                                    ×
+                                </ClearButton>
+                            )}
+                            <SearchButton type="submit" title="Search">
+                                <FaSearch />
+                            </SearchButton>
+                        </form>
                     </SearchContainer>
+                    
+                    <ResultsCount>
+                        {filteredProtocols.length === 0 ? 'No protocols found' : 
+                         filteredProtocols.length === 1 ? '1 protocol found' : 
+                         `${filteredProtocols.length} protocols found`}
+                        {searchTerm && ` for "${searchTerm}"`}
+                        {selectedCategory !== 'all' && ` in ${selectedCategory}`}
+                        {hasActiveFilters() && ' with applied filters'}
+                    </ResultsCount>
                     
                     <TableContainer>
                         <TableHeader>
@@ -967,89 +1077,112 @@ const ProtocolSelection = () => {
                         </TableHeader>
                         
                         <TableBody>
-                            <AnimatePresence>
+                            <AnimatePresence mode="wait">
                                 {currentItems.length > 0 ? (
                                     currentItems.map((protocol) => (
                                         <TableRow
                                             key={protocol.id}
-                                            layout
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
-                                            transition={{ duration: 0.3 }}
+                                            transition={{ duration: 0.2 }}
                                             onClick={() => handleProtocolSelect(protocol.id)}
                                         >
                                             <ProtocolNameCell>
-                                                {protocol.name}
-                                                <div style={{ marginTop: '5px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px', flexWrap: 'wrap' }}>
-                                                        {selectedFilters.efficiency && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Efficiency:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.efficiency || 0).toFixed(1)}</span>
-                                                                    <StarIcon size={0.5} color="#F9D100" />
-                                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                    <div style={{ marginLeft: '0.5rem' }}>
+                                                        <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>
+                                                            {protocol.name}
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                            {/* Category badges removed */}
+                                                        </div>
+                                                        <div style={{ marginTop: '5px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px', flexWrap: 'wrap' }}>
+                                                                {selectedFilters.worksForMe && protocol.worksForMeCount > 0 && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'row', marginRight: '15px', marginBottom: '8px' }}>
+                                                                        <ThumbUpIcon size={0.5} color="#00BCD4" style={{ marginRight: '3px' }} />
+                                                                        <span style={{ color: '#00BCD4' }}>Works For Me: </span>
+                                                                        <span style={{ color: '#212121', marginLeft: '3px' }}>{protocol.worksForMeCount} people</span>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.efficiency && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Efficiency:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.efficiency || 0).toFixed(1)}</span>
+                                                                            <StarIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.consistency && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Consistency:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.consistency || 0).toFixed(1)}</span>
+                                                                            <StarHalfIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.accuracy && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Accuracy:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.accuracy || 0).toFixed(1)}</span>
+                                                                            <StarOutlineIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.safety && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Safety:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.safety || 0).toFixed(1)}</span>
+                                                                            <StarOutlineIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.easeOfExecution && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Ease of Execution:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.easeOfExecution || 0).toFixed(1)}</span>
+                                                                            <StarHalfIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.scalability && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Scalability:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.scalability || 0).toFixed(1)}</span>
+                                                                            <StarIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {selectedFilters.averageRatingScore && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                            <span style={{ color: '#757575', marginRight: '5px' }}>Average Rating:</span>
+                                                                            <span style={{ color: '#F9D100' }}>{parseFloat(protocol.rating || 0).toFixed(1)}</span>
+                                                                            <StarIcon size={0.5} color="#F9D100" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                        {selectedFilters.consistency && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Consistency:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.consistency || 0).toFixed(1)}</span>
-                                                                    <StarHalfIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.accuracy && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Accuracy:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.accuracy || 0).toFixed(1)}</span>
-                                                                    <StarOutlineIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.safety && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Safety:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.safety || 0).toFixed(1)}</span>
-                                                                    <StarOutlineIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.easeOfExecution && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Ease of Execution:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.easeOfExecution || 0).toFixed(1)}</span>
-                                                                    <StarHalfIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.scalability && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Scalability:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.scalability || 0).toFixed(1)}</span>
-                                                                    <StarIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                        {selectedFilters.averageRatingScore && (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', marginRight: '15px', marginBottom: '8px', width: '100px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                                    <span style={{ color: '#757575', marginRight: '5px' }}>Average Rating:</span>
-                                                                    <span style={{ color: '#F9D100' }}>{parseFloat(protocol.rating || 0).toFixed(1)}</span>
-                                                                    <StarIcon size={0.5} color="#F9D100" />
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </ProtocolNameCell>
-                                            <AuthorCell>{protocol.author}</AuthorCell>
+                                            <AuthorCell>{
+                                                typeof protocol.author === 'string' 
+                                                    ? protocol.author 
+                                                    : (protocol.author && protocol.author.displayName 
+                                                        ? protocol.author.displayName 
+                                                        : (protocol.author && protocol.author.username 
+                                                            ? protocol.author.username 
+                                                            : 'Unknown'))
+                                            }</AuthorCell>
                                             <DateCell>{protocol.datePublished} at {protocol.publishTime}</DateCell>
                                             <RatingCell>
                                                 <RatingStars onClick={(e) => handleStarClick(e, protocol.id)}>
@@ -1077,8 +1210,16 @@ const ProtocolSelection = () => {
                             <PaginationButton 
                                 disabled={currentPage === 1} 
                                 onClick={() => setCurrentPage(1)}
+                                title="First Page"
                             >
                                 «
+                            </PaginationButton>
+                            <PaginationButton 
+                                disabled={currentPage === 1} 
+                                onClick={() => setCurrentPage(currentPage - 1)}
+                                title="Go Back"
+                            >
+                                {'<'}
                             </PaginationButton>
                             {currentPage > 1 && (
                                 <PaginationButton onClick={() => setCurrentPage(currentPage - 1)}>
@@ -1095,7 +1236,15 @@ const ProtocolSelection = () => {
                             )}
                             <PaginationButton 
                                 disabled={currentPage === totalPages} 
+                                onClick={() => setCurrentPage(currentPage + 1)}
+                                title="Go Forward"
+                            >
+                                {'>'}
+                            </PaginationButton>
+                            <PaginationButton 
+                                disabled={currentPage === totalPages} 
                                 onClick={() => setCurrentPage(totalPages)}
+                                title="Last Page"
                             >
                                 »
                             </PaginationButton>
@@ -1111,89 +1260,44 @@ const ProtocolSelection = () => {
                     transition={{ duration: 0.3 }}
                 >
                     <ProtocolDetailHeader>
-                        <ProtocolTitle>{selectedProtocol.name}</ProtocolTitle>
+                        <h2>{selectedProtocol.name}</h2>
                         <ProtocolDetailActions>
-                            <div style={{ display: 'flex', gap: '12px' }}>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                >
-                                    <ThumbUpIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                >
-                                    <BookmarkIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                    onClick={() => setViewMode('review')}
-                                >
-                                    <StarIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                >
-                                    <ShareIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                    title="Edit Protocol"
-                                >
-                                    <EditIcon size={0.8} color="#757575" />
-                                </button>
-                                <button 
-                                    onClick={handleCloseProtocol}
-                                    style={{
-                                        backgroundColor: 'transparent',
-                                        border: 'none',
-                                        color: '#757575',
-                                        cursor: 'pointer',
-                                        padding: '4px',
-                                        borderRadius: '4px',
-                                    }}
-                                >
-                                    <CloseIcon size={0.8} color="#757575" />
-                                </button>
-                            </div>
+                            <ActionButton 
+                                onClick={(e) => handleWorksForMe(e, selectedProtocol.id)}
+                                style={{
+                                    color: worksForMeProtocols.includes(selectedProtocol.id) ? '#00BCD4' : '#757575'
+                                }}
+                            >
+                                <ThumbUpIcon 
+                                    size={1.2} 
+                                    color={worksForMeProtocols.includes(selectedProtocol.id) ? '#00BCD4' : 'currentColor'} 
+                                />
+                            </ActionButton>
+                            <ActionButton onClick={() => alert('Bookmark clicked!')}>
+                                <BookmarkIcon size={1.2} />
+                            </ActionButton>
+                            <ActionButton onClick={(e) => handleStarClick(e, selectedProtocol.id)}>
+                                <StarIcon size={1.2} color="#F9D100" />
+                            </ActionButton>
+                            <ActionButton onClick={() => alert('Share clicked!')}>
+                                <ShareIcon size={1.2} />
+                            </ActionButton>
+                            <ActionButton onClick={handleCloseProtocol} style={{ color: '#757575' }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </ActionButton>
                         </ProtocolDetailActions>
                     </ProtocolDetailHeader>
                     <ProtocolInfo>
-                        <span>By {selectedProtocol.author}</span>
+                        <span>By {typeof selectedProtocol.author === 'string' 
+                            ? selectedProtocol.author 
+                            : (selectedProtocol.author && selectedProtocol.author.displayName 
+                                ? selectedProtocol.author.displayName 
+                                : (selectedProtocol.author && selectedProtocol.author.username 
+                                    ? selectedProtocol.author.username 
+                                    : 'Unknown'))}</span>
                         <span>•</span>
                         <span>Published: {selectedProtocol.datePublished}</span>
                         <span>•</span>
@@ -1220,7 +1324,7 @@ const ProtocolSelection = () => {
                             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
                                 <button
                                     style={{
-                                        backgroundColor: '#F5F5F5',
+                                        backgroundColor: '#FFFFFF',
                                         color: '#212121',
                                         border: '1px solid #E0E0E0',
                                         borderRadius: '1rem',
@@ -1233,7 +1337,7 @@ const ProtocolSelection = () => {
                                 </button>
                                 <button
                                     style={{
-                                        backgroundColor: '#F5F5F5',
+                                        backgroundColor: '#FFFFFF',
                                         color: '#212121',
                                         border: '1px solid #E0E0E0',
                                         borderRadius: '1rem',
@@ -1593,7 +1697,7 @@ const ProtocolSelection = () => {
                                                         width: '40px', 
                                                         height: '40px', 
                                                         borderRadius: '50%', 
-                                                        backgroundColor: '#E0E0E0',
+                                                        backgroundColor: '#FFFFFF',
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         justifyContent: 'center',
@@ -1699,39 +1803,36 @@ const ProtocolSelection = () => {
                                                         fontSize: '0.875rem'
                                                     }}>
                                                         {Object.entries(review.metrics).map(([key, value]) => {
-                                                            if (value > 0) {
-                                                                return (
-                                                                    <div key={key} style={{ 
-                                                                        backgroundColor: '#F5F5F5',
-                                                                        padding: '0.5rem 0.75rem',
-                                                                        borderRadius: '1rem',
+                                                            return (
+                                                                <div key={key} style={{ 
+                                                                    backgroundColor: '#FFFFFF',
+                                                                    padding: '0.5rem 0.75rem',
+                                                                    borderRadius: '1rem',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center'
+                                                                }}>
+                                                                    <span style={{ 
+                                                                        textTransform: 'capitalize',
+                                                                        color: '#616161',
+                                                                        marginRight: '0.5rem'
+                                                                    }}>
+                                                                        {key.replace(/([A-Z])/g, ' $1').trim()}:
+                                                                    </span>
+                                                                    <span style={{ 
+                                                                        fontWeight: '500',
+                                                                        color: '#212121',
                                                                         display: 'flex',
                                                                         alignItems: 'center'
                                                                     }}>
-                                                                        <span style={{ 
-                                                                            textTransform: 'capitalize',
-                                                                            color: '#616161',
-                                                                            marginRight: '0.5rem'
-                                                                        }}>
-                                                                            {key.replace(/([A-Z])/g, ' $1').trim()}:
-                                                                        </span>
-                                                                        <span style={{ 
-                                                                            fontWeight: '500',
-                                                                            color: '#212121',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center'
-                                                                        }}>
-                                                                            {value}
-                                                                            <StarIcon style={{ 
-                                                                                color: '#F9D100',
-                                                                                fontSize: '0.875rem',
-                                                                                marginLeft: '0.25rem'
-                                                                            }} />
-                                                                        </span>
-                                                                    </div>
-                                                                );
-                                                            }
-                                                            return null;
+                                                                        {value}
+                                                                        <StarIcon style={{ 
+                                                                            color: '#F9D100',
+                                                                            fontSize: '0.875rem',
+                                                                            marginLeft: '0.25rem'
+                                                                        }} />
+                                                                    </span>
+                                                                </div>
+                                                            );
                                                         })}
                                                     </div>
                                                 )}
@@ -1825,12 +1926,14 @@ const ProtocolSelection = () => {
 
 const Container = styled(motion.div)`
     padding: 0;
+    margin: 0;
     max-width: 100%;
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
     flex: 1;
+    background-color: #FFFFFF;
 `;
 
 const Header = styled.div`
@@ -1933,17 +2036,25 @@ const RetryButton = styled.button`
 
 const FiltersAndContentWrapper = styled.div`
     display: flex;
-    flex: 1;
-    overflow: hidden;
+    flex-direction: row;
+    gap: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
     width: 100%;
+    margin-top: 0;
+    padding-top: 0;
+    flex: 1;
+    background-color: #FFFFFF;
+    
+    @media (max-width: 768px) {
+        flex-direction: column;
+    }
 `;
 
 const FiltersWrapper = styled.div`
     width: 250px;
     min-width: 250px;
-    border-right: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
+    border-right: none;
     overflow-y: auto;
-    background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+    background-color: #FFFFFF;
 `;
 
 const ContentWrapper = styled.div`
@@ -1951,12 +2062,12 @@ const ContentWrapper = styled.div`
     padding: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
     overflow-y: auto;
     width: calc(100% - 250px);
-    background-color: ${({ theme }) => theme.background?.main || '#F5F5F5'};
+    background-color: #FFFFFF;
 `;
 
 const FiltersSection = styled.div`
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+    background-color: #FFFFFF;
 `;
 
 const ProtocolTypeSection = styled.div`
@@ -1979,7 +2090,7 @@ const SectionTitle = styled.h4`
     margin-bottom: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
     font-size: ${({ theme }) => theme.typography?.fontSize?.xs || '0.75rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.bold || 700};
-    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    color: #757575;
     text-transform: uppercase;
 `;
 
@@ -1992,17 +2103,53 @@ const FilterCheckboxes = styled.div`
 const FilterCheckbox = styled.div`
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center; /* Changed from flex-start to center for vertical alignment */
     flex-wrap: wrap;
     margin-bottom: 8px;
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
+    color: #212121;
     
-    input {
+    input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        outline: none;
+        cursor: pointer;
+        position: relative;
         margin: 0;
+        
+        &:checked {
+            background-color: #00BCD4;
+            border-color: #00BCD4;
+        }
+        
+        &:checked::after {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 2px;
+            width: 4px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+        
+        &:focus {
+            box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.3);
+        }
     }
     
     label {
         margin-left: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        min-height: 16px; /* Match the height of the checkbox */
+        color: #212121;
     }
     
     & > div {
@@ -2017,7 +2164,7 @@ const ClearFiltersButton = styled.button`
     border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'};
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
-    background-color: ${({ disabled }) => disabled ? '#F0F0F0' : '#222222'};
+    background-color: ${({ disabled }) => disabled ? '#F0F0F0' : '#00BCD4'};
     color: ${({ disabled }) => disabled ? '#555555' : '#FFFFFF'};
     border: none;
     transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
@@ -2026,34 +2173,43 @@ const ClearFiltersButton = styled.button`
     opacity: ${({ disabled }) => disabled ? 0.7 : 1};
     
     &:hover {
-        background-color: ${({ disabled }) => disabled ? '#E0E0E0' : '#333333'};
+        background-color: ${({ disabled }) => disabled ? '#E0E0E0' : '#008ba3'};
     }
 `;
 
 const SearchContainer = styled.div`
     position: relative;
-    width: 100%;
-    margin-bottom: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
+    width: 300px;
+    margin-bottom: 0.75rem;
+    
+    form {
+        display: flex;
+        position: relative;
+        width: 100%;
+    }
     
     @media (max-width: 768px) {
         max-width: 100%;
+        width: 100%;
     }
 `;
 
 const SearchInput = styled.input`
     width: 100%;
-    padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    padding-left: ${({ theme }) => theme.spacing?.xl || '2rem'};
-    border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'};
-    border: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
-    font-size: ${({ theme }) => theme.typography?.fontSize?.md || '1rem'};
+    padding: 0.5rem;
+    padding-left: 1rem; /* Adjusted to start text from a reasonable position */
+    padding-right: 40px;
+    border-radius: 16px;
+    border: 1px solid #F0F0F0;
+    font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     transition: border-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, box-shadow ${({ theme }) => theme.transition?.fast || '0.15s ease'};
-    background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+    background-color: #FFFFFF;
+    height: 32px;
     
     &:focus {
         outline: none;
-        border-color: ${({ theme }) => theme.primary || '#00BCD4'};
-        box-shadow: 0 0 0 2px ${({ theme }) => `${theme.primary || '#00BCD4'}33` || 'rgba(0, 188, 212, 0.2)'};
+        border-color: #00BCD4;
+        box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.1);
     }
     
     &::placeholder {
@@ -2061,32 +2217,50 @@ const SearchInput = styled.input`
     }
 `;
 
-const SearchIcon = styled.div`
+const SearchButton = styled.button`
     position: absolute;
-    left: ${({ theme }) => theme.spacing?.md || '1rem'};
-    top: 50%;
-    transform: translateY(-50%);
-    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    right: 0;
+    top: 0;
+    height: 32px;
+    width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: #757575;
+    cursor: pointer;
+    font-size: 0.875rem;
+    
+    &:hover {
+        color: #00BCD4;
+    }
+`;
+
+const ResultsCount = styled.div`
+    font-size: 0.75rem;
+    color: #757575;
+    margin-top: 0.25rem;
+    margin-bottom: 0.75rem;
 `;
 
 const TableContainer = styled.div`
     overflow-x: auto;
-    border: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
-    border-radius: ${({ theme }) => theme.borderRadius?.md || '0.5rem'};
+    border: none;
     margin-bottom: 0;
     flex: 1;
     display: flex;
     flex-direction: column;
     width: 100%;
-    background-color: ${({ theme }) => theme.background?.secondary || '#FFFFFF'};
+    background-color: #FFFFFF;
 `;
 
 const TableHeader = styled.div`
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    background-color: ${({ theme }) => theme.background?.tertiary || '#F0F0F0'};
-    border-bottom: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
+    background-color: #FFFFFF;
+    border-bottom: 1px solid #F0F0F0;
 `;
 
 const ProtocolNameHeader = styled.div`
@@ -2095,9 +2269,10 @@ const ProtocolNameHeader = styled.div`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    color: #212121;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #00BCD4;
     }
 `;
 
@@ -2107,9 +2282,10 @@ const AuthorHeader = styled.div`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    color: #212121;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #00BCD4;
     }
 `;
 
@@ -2119,9 +2295,10 @@ const DateHeader = styled.div`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    color: #212121;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #00BCD4;
     }
 `;
 
@@ -2131,9 +2308,10 @@ const RatingHeader = styled.div`
     display: flex;
     align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    color: #212121;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #00BCD4;
     }
 `;
 
@@ -2146,12 +2324,13 @@ const TableRow = styled(motion.div)`
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr;
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    border-bottom: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
+    border-bottom: 1px solid #F0F0F0;
     cursor: pointer;
     transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
+    background-color: #FFFFFF;
     
     &:hover {
-        background-color: ${({ theme }) => theme.background?.tertiary || '#F0F0F0'};
+        background-color: #f8f8f8;
     }
     
     &:last-child {
@@ -2161,16 +2340,17 @@ const TableRow = styled(motion.div)`
 
 const ProtocolNameCell = styled.div`
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
-    color: ${({ theme }) => theme.primary || '#00BCD4'};
+    color: #212121;
 `;
 
 const AuthorCell = styled.div`
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
+    color: #212121;
 `;
 
 const DateCell = styled.div`
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    color: #212121;
 `;
 
 const RatingCell = styled.div`
@@ -2182,17 +2362,17 @@ const RatingCell = styled.div`
 const RatingStars = styled.div`
     display: flex;
     align-items: center;
-    color: ${({ theme }) => theme.status?.warning || '#FFC107'};
+    color: #F9D100;
     cursor: pointer;
     
     &:hover {
-        color: ${({ theme }) => theme.primary || '#00BCD4'};
+        color: #F9D100;
     }
 `;
 
 const RatingValue = styled.span`
     margin-left: 0.5rem;
-    color: ${({ theme }) => theme.text?.secondary || '#757575'};
+    color: #212121;
 `;
 
 const PaginationContainer = styled.div`
@@ -2200,50 +2380,66 @@ const PaginationContainer = styled.div`
     justify-content: space-between;
     align-items: center;
     padding: ${({ theme }) => theme.spacing?.md || '1rem'};
-    border-top: 1px solid ${({ theme }) => theme.border?.light || '#e0e0e0'};
-    background-color: ${({ theme }) => theme.background?.main || '#F5F5F5'};
+    border-top: 1px solid #F0F0F0;
+    background-color: #FFFFFF;
+    
+    @media (max-width: 768px) {
+        flex-direction: column;
+        gap: 10px;
+    }
 `;
 
 const PaginationInfo = styled.div`
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
-    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    color: #212121;
 `;
 
 const Pagination = styled.div`
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+    flex-wrap: wrap;
+    
+    @media (max-width: 768px) {
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
+    }
 `;
 
 const PaginationButton = styled.button`
-    padding: ${({ theme }) => theme.spacing?.xs || '0.25rem'} ${({ theme }) => theme.spacing?.sm || '0.5rem'};
+    padding: ${({ theme }) => theme.spacing?.xs || '0.25rem'} ${({ theme }) => theme.spacing?.md || '0.75rem'};
     border-radius: ${({ theme }) => theme.borderRadius?.sm || '0.25rem'};
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
-    background-color: ${({ theme, active }) => active ? theme.primary || '#00BCD4' : theme.background?.tertiary || '#EEEEEE'};
-    color: ${({ theme, active }) => active ? 'white' : theme.text?.secondary || '#757575'};
+    background-color: ${({ active }) => active ? '#00BCD4' : '#FFFFFF'};
+    color: ${({ active }) => active ? 'white' : '#212121'};
     transition: background-color ${({ theme }) => theme.transition?.fast || '0.15s ease'}, color ${({ theme }) => theme.transition?.fast || '0.15s ease'};
     opacity: ${({ disabled }) => disabled ? 0.5 : 1};
     cursor: ${({ disabled }) => disabled ? 'not-allowed' : 'pointer'};
-    border: none;
+    border: ${({ active }) => active ? 'none' : '1px solid #F0F0F0'};
+    margin: 0 2px;
+    min-width: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     
     &:hover:not(:disabled) {
-        background-color: ${({ theme, active }) => active ? theme.primary || '#00BCD4' : theme.background?.tertiary || '#E0E0E0'};
+        background-color: ${({ active }) => active ? '#008ba3' : '#F9F9F9'};
+        color: ${({ active }) => active ? 'white' : '#00BCD4'};
+    }
+    
+    &:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.2);
     }
 `;
 
 const NoResults = styled.div`
     text-align: center;
     padding: ${({ theme }) => theme.spacing?.xl || '2rem'};
-    color: ${({ theme }) => theme.text?.secondary || '#555555'};
-    
-    h3 {
-        margin-bottom: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
-    }
-    
-    p {
-        color: ${({ theme }) => theme.text?.tertiary || '#777777'};
-    }
+    color: #212121;
 `;
 
 const ProtocolDetailContainer = styled(motion.div)`
@@ -2252,7 +2448,7 @@ const ProtocolDetailContainer = styled(motion.div)`
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: ${({ theme }) => theme.background?.main || '#F5F5F5'};
+    background-color: #FFFFFF;
     z-index: 1000; /* Increased from 20 to be higher than user status component */
     padding: ${({ theme }) => theme.spacing?.lg || '1.5rem'};
     overflow-y: auto;
@@ -2278,25 +2474,26 @@ const ActionButton = styled.button`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: ${({ theme }) => theme.spacing?.sm || '0.5rem'} ${({ theme }) => theme.spacing?.md || '1rem'};
-    background-color: ${({ primary, theme }) => primary ? theme.primary ?? '#00BCD4' : 'transparent'};
-    color: ${({ primary, theme }) => primary ? 'white' : theme.text?.secondary ?? '#757575'};
-    border: ${({ primary, theme }) => primary ? 'none' : `1px solid ${theme.border?.light ?? '#E0E0E0'}`};
-    border-radius: ${({ theme }) => theme.borderRadius?.sm || '0.25rem'};
+    padding: ${({ theme }) => theme.spacing?.sm || '0.5rem'};
+    background-color: transparent;
+    color: ${({ primary }) => primary ? '#00BCD4' : '#757575'};
+    border: none;
+    border-radius: 50%;
     font-size: ${({ theme }) => theme.typography?.fontSize?.sm || '0.875rem'};
     font-weight: ${({ theme }) => theme.typography?.fontWeight?.medium || 500};
     cursor: pointer;
     transition: all ${({ theme }) => theme.transition?.fast || '0.15s ease'};
     position: relative;
     z-index: 100;
+    width: 40px;
+    height: 40px;
     
     &:hover {
-        background-color: ${({ primary, theme }) => primary ? theme.primary ?? '#00BCD4' : theme.background?.tertiary ?? '#EEEEEE'};
-        opacity: 0.9;
+        background-color: #f8f8f8;
     }
     
     svg {
-        margin-right: ${({ theme }) => theme.spacing?.xs || '0.25rem'};
+        font-size: 20px;
     }
 `;
 
@@ -2407,7 +2604,7 @@ const StarButton = styled.button`
 `;
 
 const RunProtocolButton = styled.button`
-    background-color: white;
+    background-color: #FFFFFF;
     color: #00BCD4; /* Turquoise color */
     border: 1px solid #e0e0e0;
     border-radius: 4px;
@@ -2423,7 +2620,7 @@ const RunProtocolButton = styled.button`
     transition: all 0.2s ease;\r\n    width: 100%; /* Make button fill the whole width */
     
     &:hover {
-        background-color: #f8f9fa;
+        background-color: #f8f8f8;
         box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
@@ -2445,15 +2642,15 @@ const ProtocolTypeButton = styled.button`
     display: flex;
     align-items: center;
     padding: 8px 16px;
-    background-color: ${({ active }) => active ? '#E6F7FA' : 'white'};
-    color: ${({ active }) => active ? '#00BCD4' : '#757575'};
-    border: 1px solid ${({ active }) => active ? '#00BCD4' : '#E0E0E0'};
+    background-color: ${({ active }) => active ? 'rgba(58, 178, 180, 0.1)' : '#FFFFFF'};
+    color: ${({ active }) => active ? '#3ab2b4' : '#757575'};
+    border: 1px solid ${({ active }) => active ? '#3ab2b4' : '#E0E0E0'};
     border-radius: 50px;
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: ${({ active }) => active ? '0 2px 4px rgba(0, 188, 212, 0.15)' : '0 1px 2px rgba(0,0,0,0.05)'};
+    box-shadow: ${({ active }) => active ? '0 2px 4px rgba(58, 178, 180, 0.15)' : '0 1px 2px rgba(0,0,0,0.05)'};
     width: 100%;
     text-align: left;
     position: relative;
@@ -2461,12 +2658,46 @@ const ProtocolTypeButton = styled.button`
     min-width: 200px;
     
     &:hover {
-        background-color: ${({ active }) => active ? '#E6F7FA' : '#F5F5F5'};
+        background-color: ${({ active }) => active ? 'rgba(58, 178, 180, 0.1)' : '#f8f8f8'};
     }
     
     svg {
-        fill: ${({ active }) => active ? '#00BCD4' : '#757575'};
+        fill: ${({ active }) => active ? '#3ab2b4' : '#757575'};
     }
+`;
+
+const ClearButton = styled.button`
+    position: absolute;
+    right: 32px;
+    top: 0;
+    height: 32px;
+    width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: ${({ theme }) => theme.text?.tertiary || '#777777'};
+    cursor: pointer;
+    font-size: 1.25rem;
+    font-weight: bold;
+    line-height: 1;
+    padding: 0;
+    margin: 0;
+    
+    &:hover {
+        color: #ff6b6b;
+    }
+`;
+
+const CategoryBadge = styled.span`
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: rgba(58, 178, 180, 0.1);
+    color: #3ab2b4;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
 `;
 
 export default ProtocolSelection;

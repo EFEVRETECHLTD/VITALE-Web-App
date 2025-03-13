@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const { mockUsers, mockProtocols, mockReviews, hashPasswords, getPreHashedUsers } = require('./mockData');
-const connectDB = require('../config/db');
+const { connectDB } = require('../config/db');
+const { loadGeneratedProtocols } = require('./generateProtocols');
 
 // In-memory database for fallback
 let inMemoryDB = {
@@ -28,7 +29,7 @@ const seedDatabase = async () => {
     console.log('Database seeded successfully!');
   } catch (error) {
     console.error(`Error seeding database: ${error.message}`);
-    process.exit(1);
+    throw error;
   }
 };
 
@@ -136,6 +137,14 @@ const seedInMemoryDB = async () => {
     console.log(`${inMemoryDB.users.length} users created in memory`);
     console.log(`${inMemoryDB.protocols.length} protocols created in memory`);
     console.log(`${inMemoryDB.reviews.length} reviews created in memory`);
+    
+    // Load generated protocols if available
+    const generatedProtocols = loadGeneratedProtocols();
+    if (generatedProtocols && generatedProtocols.length > 0) {
+      // Replace the protocols with the generated ones
+      inMemoryDB.protocols = generatedProtocols;
+      console.log(`Loaded ${generatedProtocols.length} generated protocols`);
+    }
     
   } catch (error) {
     console.error(`Error seeding in-memory database: ${error.message}`);

@@ -13,6 +13,7 @@ const StatusPage = () => {
         minutes: '00',
         seconds: '00'
     });
+    const [loading, setLoading] = useState(false);
 
     // Redirect to protocol selection if no protocol is selected
     useEffect(() => {
@@ -67,13 +68,24 @@ const StatusPage = () => {
         }
     };
 
+    // Get API URL dynamically
+    const getApiUrl = () => {
+        return process.env.REACT_APP_API_URL 
+            ? process.env.REACT_APP_API_URL 
+            : `${window.location.protocol}//${window.location.hostname}:3001`;
+    };
+
+    // Fetch state from the API
     const fetchState = async () => {
         try {
-            console.log(`Fetching state from ${baseUrl}/state`);
-            const response = await fetch(`${baseUrl}/state`);
+            setLoading(true);
+            const apiUrl = getApiUrl();
+            const response = await fetch(`${apiUrl}/state`);
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+            
             const state = await response.json();
             console.log('Received state:', state);
             setProgress(state.progress);
@@ -89,19 +101,25 @@ const StatusPage = () => {
                 stack: error.stack,
                 error
             });
+        } finally {
+            setLoading(false);
         }
     };
 
     // Fetch state on component mount
     useEffect(() => {
         fetchState();
+        
         // Poll for state updates every second when running
         const interval = setInterval(() => {
             if (isRunning) {
                 fetchState();
             }
         }, 1000);
-        return () => clearInterval(interval);
+        
+        return () => {
+            clearInterval(interval);
+        };
     }, [isRunning]);
 
     const toggleRunning = async () => {

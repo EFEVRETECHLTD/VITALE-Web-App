@@ -21,4 +21,4 @@ Write-Host "-----------------------------------" -ForegroundColor Cyan
 
 # Run the frontend directly in the current process
 Set-Location $PWD
-npm start 
+npm start

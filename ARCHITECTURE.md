@@ -1,8 +1,8 @@
-# Instrument Status Page - Development Branch Architecture
+# Instrument Status Page - Architecture Documentation
 
 ## 1. System Overview
 
-The Instrument Status Page is a web application designed for laboratory environments to manage and monitor scientific protocols. The system includes user management, protocol library management, and a responsive user interface. This document describes the current architecture of the development branch.
+The Instrument Status Page is a web application designed for laboratory environments to manage and monitor scientific protocols. The system includes user management, protocol library management, and a responsive user interface. This document describes the current architecture of the application.
 
 ## 2. Technology Stack
 
@@ -34,7 +34,12 @@ The Instrument Status Page is a web application designed for laboratory environm
   - JSON Web Tokens (jsonwebtoken 9.0.2)
   - bcrypt.js 2.4.3 for password hashing
 - **Security**:
+  - Helmet for HTTP headers
   - CORS protection
+  - Rate limiting with express-rate-limit
+- **Performance**:
+  - Compression middleware
+  - Optional Redis caching
 - **External Communication**:
   - Axios 1.8.2 for HTTP requests
 
@@ -42,12 +47,15 @@ The Instrument Status Page is a web application designed for laboratory environm
 - **Primary Database**: MongoDB
   - Mongoose ODM 8.0.3 for schema definition and validation
   - Support for in-memory database option for development
+- **Caching**: Optional Redis for data caching
 
 ### 2.4 DevOps & Infrastructure
 - **Development Tools**: 
   - Nodemon for server auto-restart
   - Environment configuration via dotenv
+- **Containerization**: Docker with docker-compose
 - **Deployment**: 
+  - Render platform support
   - Basic deployment scripts
 
 ## 3. System Architecture
@@ -59,6 +67,7 @@ The application follows a monolithic architecture with the following components:
 1. **Client Application**: React-based single-page application
 2. **Backend Server**: Express.js REST API
 3. **Database**: MongoDB for data persistence
+4. **Optional Caching**: Redis for performance optimization
 
 ```
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
@@ -67,6 +76,14 @@ The application follows a monolithic architecture with the following components:
 │  (Frontend)     │─────>│  (REST API)     │─────>│  (Database)     │
 │                 │      │                 │      │                 │
 └─────────────────┘      └─────────────────┘      └─────────────────┘
+                                 │
+                                 ▼
+                         ┌─────────────────┐
+                         │                 │
+                         │  Redis          │
+                         │  (Optional)     │
+                         │                 │
+                         └─────────────────┘
 ```
 
 ### 3.2 Backend Structure
@@ -76,7 +93,8 @@ The backend is organized as a single Express.js application with the following c
 1. **Authentication**: User registration, login, and token verification
 2. **Protocol Management**: CRUD operations for protocols
 3. **Review System**: Protocol reviews and ratings
-4. **Configuration**: Environment-based configuration
+4. **Health Monitoring**: System health checks
+5. **Configuration**: Environment-based configuration
 
 ### 3.3 Frontend Architecture
 
@@ -128,6 +146,9 @@ const UserSchema = new mongoose.Schema({
   },
   profileImage: {
     type: String
+  },
+  lastLogin: {
+    type: Date
   }
 }, {
   timestamps: true
@@ -265,23 +286,23 @@ const ReviewSchema = new mongoose.Schema({
 ### 6.1 Development Environment
 
 - Local development with npm scripts
-- Server auto-restart with Nodemon
+- Optional in-memory database for development without MongoDB
 - Environment variables via .env files
 
-### 6.2 Testing
+### 6.2 Deployment Options
 
-- Basic API testing with REST client
-- Unit testing with Jest and React Testing Library
+- Docker containerization
+- Render platform deployment
+- Basic deployment scripts for different environments
 
-## 7. Future Development Plans
+## 7. Future Architecture Considerations
 
-While the current implementation is a monolithic application, future development plans include:
+While the current implementation is a monolithic application, the system has been designed with potential future expansion in mind. Future architectural enhancements could include:
 
-- Improved security with additional middleware (Helmet, rate limiting)
-- Enhanced caching strategies with Redis
-- Transition to TypeScript for better type safety
-- Implementation of WebSockets for real-time updates
-- Expanded test coverage
-- CI/CD pipeline integration
-- Docker containerization for consistent deployment
+- Transition to microservices architecture
+- Implementation of GraphQL for more efficient data fetching
+- Enhanced authentication with OAuth and MFA
+- Advanced caching strategies
+- Integration with laboratory instruments and IoT devices
+- Real-time updates with WebSockets
 - Advanced analytics and reporting capabilities
