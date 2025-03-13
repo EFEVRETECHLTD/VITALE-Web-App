@@ -13,9 +13,9 @@ export const theme = {
       info: '#2c82e0', // Vuesax info blue
     },
     background: {
-      main: '#F5F5F5', // Background color
+      main: '#FFFFFF', // Background color - changed to clear white
       secondary: '#FFFFFF', // Card/surface background
-      tertiary: '#EEEEEE', // Control Alt background
+      tertiary: '#FFFFFF', // Control Alt background - changed to white
     },
     text: {
       primary: '#212121', // Primary Text color
@@ -86,8 +86,8 @@ export const theme = {
   },
   typography: {
     fontFamily: {
-      primary: "'Inter', 'Segoe UI', 'Roboto', sans-serif",
-      secondary: "'Poppins', 'Segoe UI', 'Roboto', sans-serif",
+      primary: "'DM Sans', 'Segoe UI', 'Roboto', sans-serif",
+      secondary: "'DM Sans', 'Segoe UI', 'Roboto', sans-serif",
       mono: "'Roboto Mono', 'Courier New', monospace",
     },
     fontWeight: {

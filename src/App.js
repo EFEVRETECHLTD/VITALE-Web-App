@@ -66,6 +66,7 @@ const AppContainer = styled.div`
   width: 100vw;
   overflow: hidden;
   position: relative;
+  background-color: #FFFFFF;
 `;
 
 const MainContent = styled.div`
@@ -83,6 +84,7 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   transition: left 0.3s ease;
+  background-color: #FFFFFF;
   
   @media (max-width: 768px) {
     left: 0; /* Reset on mobile */
