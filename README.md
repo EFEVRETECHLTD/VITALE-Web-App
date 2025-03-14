@@ -125,3 +125,157 @@ This software is proprietary and confidential. Unauthorized copying, distributio
 See the [LICENSE](./LICENSE) file for detailed terms and conditions.
 
 Copyright 2025 EFEVRE TECH LTD. All rights reserved.
+
+# VITALE Protocol Library
+
+A standalone, modular protocol library component that can be integrated with any database and authentication system.
+
+## Features
+
+- **Database Agnostic**: Can work with any database through adapter pattern
+- **Authentication Agnostic**: Can work with any authentication system through adapter pattern
+- **Responsive UI**: Modern, responsive user interface for protocol browsing
+- **Search & Filter**: Advanced search and filtering capabilities
+- **Sorting**: Sort protocols by various criteria
+- **Pagination**: Efficient pagination for large protocol collections
+
+## Architecture
+
+The application is built with a modular architecture that separates concerns:
+
+### Backend
+
+- **Adapter Pattern**: Database and authentication adapters allow for easy integration with any system
+- **RESTful API**: Clean API endpoints for protocol management
+- **Middleware**: Configurable middleware for authentication and authorization
+
+### Frontend
+
+- **Standalone Component**: The `ProtocolLibrary` component can be used in any React application
+- **Prop-based Configuration**: Configure the component through props
+- **Event Handlers**: Callback functions for protocol selection and error handling
+
+## Getting Started
+
+### Backend Setup
+
+1. Install dependencies:
+   ```
+   cd server
+   npm install
+   ```
+
+2. Configure environment variables:
+   ```
+   DB_ADAPTER=inmemory  # or any other adapter you implement
+   AUTH_ADAPTER=jwt     # or any other adapter you implement
+   PORT=3001
+   ```
+
+3. Start the server:
+   ```
+   node protocol-library-server.js
+   ```
+
+### Frontend Setup
+
+1. Install dependencies:
+   ```
+   npm install
+   ```
+
+2. Configure environment variables:
+   ```
+   REACT_APP_API_URL=http://localhost:3001
+   ```
+
+3. Start the application:
+   ```
+   npm start
+   ```
+
+## Extending the System
+
+### Adding a New Database Adapter
+
+1. Create a new adapter that extends the `DatabaseAdapter` class:
+   ```javascript
+   const DatabaseAdapter = require('./DatabaseAdapter');
+
+   class MyDatabaseAdapter extends DatabaseAdapter {
+     // Implement all required methods
+   }
+
+   module.exports = MyDatabaseAdapter;
+   ```
+
+2. Register your adapter in the `AdapterFactory`:
+   ```javascript
+   // In AdapterFactory.js
+   case 'mydatabase':
+     AdapterClass = require('./MyDatabaseAdapter');
+     break;
+   ```
+
+3. Configure the application to use your adapter:
+   ```
+   DB_ADAPTER=mydatabase
+   ```
+
+### Adding a New Authentication Adapter
+
+1. Create a new adapter that extends the `AuthAdapter` class:
+   ```javascript
+   const AuthAdapter = require('./AuthAdapter');
+
+   class MyAuthAdapter extends AuthAdapter {
+     // Implement all required methods
+   }
+
+   module.exports = MyAuthAdapter;
+   ```
+
+2. Register your adapter in the `AdapterFactory`:
+   ```javascript
+   // In AdapterFactory.js
+   case 'myauth':
+     AdapterClass = require('./MyAuthAdapter');
+     break;
+   ```
+
+3. Configure the application to use your adapter:
+   ```
+   AUTH_ADAPTER=myauth
+   ```
+
+## Using the ProtocolLibrary Component
+
+```jsx
+import ProtocolLibrary from './components/ProtocolLibrary';
+
+function App() {
+  const handleProtocolSelect = (protocolId) => {
+    console.log(`Selected protocol: ${protocolId}`);
+    // Navigate to protocol details or perform other actions
+  };
+
+  const handleError = (error) => {
+    console.error('Protocol library error:', error);
+    // Handle errors appropriately
+  };
+
+  return (
+    <div>
+      <ProtocolLibrary 
+        authToken={yourAuthToken}
+        onProtocolSelect={handleProtocolSelect}
+        onError={handleError}
+      />
+    </div>
+  );
+}
+```
+
+## License
+
+MIT

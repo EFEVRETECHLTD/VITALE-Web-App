@@ -1,95 +1,112 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import StatusPage from './components/StatusPage';
-import Navigation from './components/Navigation';
-import Login from './components/Auth/Login';
-import Register from './components/Auth/Register';
-import ProtocolSelection from './components/ProtocolSelection';
-import ProtocolForm from './components/ProtocolForm';
-import { ThemeProvider } from './ThemeContext';
-import { AuthProvider } from './contexts/AuthContext';
-import GlobalStyles from './GlobalStyles';
-import './App.css';
+import ProtocolLibrary from './components/ProtocolLibrary';
 import styled from 'styled-components';
-
-// Protected route component
-const ProtectedRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return children;
-};
+import './App.css';
 
 function App() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [authToken, setAuthToken] = useState(localStorage.getItem('token'));
+  const [selectedProtocolId, setSelectedProtocolId] = useState(null);
   
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
+  // Handle protocol selection
+  const handleProtocolSelect = (protocolId) => {
+    setSelectedProtocolId(protocolId);
+    // In a real app, you might navigate to a protocol detail page
+    console.log(`Selected protocol: ${protocolId}`);
+  };
+  
+  // Handle errors
+  const handleError = (error) => {
+    console.error('Protocol library error:', error);
   };
   
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <GlobalStyles />
-        <Router>
-          <AppContainer>
-            <Navigation isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
-            <MainContent sidebarWidth={isCollapsed ? '60px' : '240px'}>
-              <Routes>
-                <Route path="/" element={<Navigate to="/status" replace />} />
-                <Route path="/protocols" element={<ProtocolSelection />} />
-                <Route path="/status" element={<StatusPage />} />
-                <Route path="/status/:protocol" element={<StatusPage />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/create-protocol" element={
-                  <ProtectedRoute>
-                    <ProtocolForm />
-                  </ProtectedRoute>
-                } />
-              </Routes>
-            </MainContent>
-          </AppContainer>
-        </Router>
-      </AuthProvider>
-    </ThemeProvider>
+    <AppContainer>
+      <Header>
+        <Logo>VITALE Protocol Library</Logo>
+        {authToken ? (
+          <AuthButton onClick={() => {
+            localStorage.removeItem('token');
+            setAuthToken(null);
+          }}>
+            Logout
+          </AuthButton>
+        ) : (
+          <AuthButton onClick={() => {
+            // In a real app, this would open a login form
+            const mockToken = 'mock-jwt-token';
+            localStorage.setItem('token', mockToken);
+            setAuthToken(mockToken);
+          }}>
+            Login
+          </AuthButton>
+        )}
+      </Header>
+      
+      <MainContent>
+        <ProtocolLibrary 
+          authToken={authToken}
+          onProtocolSelect={handleProtocolSelect}
+          onError={handleError}
+        />
+      </MainContent>
+      
+      <Footer>
+        <p>© 2023 VITALE Protocol Library. All rights reserved.</p>
+        <p>This component can be integrated with any database and authentication system.</p>
+      </Footer>
+    </AppContainer>
   );
 }
 
-// Styled components for the layout
+// Styled Components
 const AppContainer = styled.div`
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-  position: relative;
-  background-color: #FFFFFF;
-`;
-
-const MainContent = styled.div`
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: ${props => props?.sidebarWidth ?? '240px'};
-  padding-top: 80px; /* Add extra padding at the top to account for the user profile component */
-  padding-right: 0;
-  padding-bottom: 0;
-  padding-left: 0;
-  overflow-y: auto;
-  box-sizing: border-box;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  transition: left 0.3s ease;
-  background-color: #FFFFFF;
+`;
+
+const Header = styled.header`
+  background-color: #4a6cf7;
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const Logo = styled.div`
+  font-size: 1.5rem;
+  font-weight: bold;
+`;
+
+const AuthButton = styled.button`
+  background-color: white;
+  color: #4a6cf7;
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.5rem 1rem;
+  font-weight: bold;
+  cursor: pointer;
   
-  @media (max-width: 768px) {
-    left: 0; /* Reset on mobile */
-    width: 100%; /* Full width on mobile */
+  &:hover {
+    background-color: #f0f0f0;
   }
 `;
 
-export default App;
+const MainContent = styled.main`
+  flex: 1;
+  background-color: #f9f9f9;
+`;
+
+const Footer = styled.footer`
+  background-color: #333;
+  color: white;
+  padding: 1.5rem 2rem;
+  text-align: center;
+  
+  p {
+    margin: 0.5rem 0;
+  }
+`;
+
+export default App; 
