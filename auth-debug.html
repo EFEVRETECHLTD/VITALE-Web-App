@@ -1,0 +1,125 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Auth Debug</title>
+    <script>
+        function checkToken() {
+            const token = localStorage.getItem('token');
+            document.getElementById('tokenStatus').innerText = token ? 'Token found in localStorage' : 'No token found in localStorage';
+            
+            if (token) {
+                try {
+                    // Parse the token
+                    const base64Url = token.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
+                    
+                    const tokenData = JSON.parse(jsonPayload);
+                    document.getElementById('tokenInfo').innerText = JSON.stringify(tokenData, null, 2);
+                    
+                    // Check if token is expired
+                    const now = Math.floor(Date.now() / 1000);
+                    if (tokenData.exp < now) {
+                        document.getElementById('tokenStatus').innerText += ' (EXPIRED)';
+                    } else {
+                        const timeLeft = tokenData.exp - now;
+                        document.getElementById('tokenStatus').innerText +=  (Valid for  seconds);
+                    }
+                } catch (e) {
+                    document.getElementById('tokenInfo').innerText = 'Error parsing token: ' + e.message;
+                }
+            }
+        }
+
+        function testEndpoint() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                document.getElementById('apiResult').innerText = 'No token found in localStorage';
+                return;
+            }
+
+            fetch('http://localhost:3001/api/protocols?limit=1', {
+                headers: {
+                    'Authorization': Bearer 
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(HTTP error! Status: );
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('apiResult').innerText = 'API call successful: ' + JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                document.getElementById('apiResult').innerText = 'API call failed: ' + error.message;
+            });
+        }
+
+        function testBookmarkEndpoint() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                document.getElementById('bookmarkResult').innerText = 'No token found in localStorage';
+                return;
+            }
+
+            // Get the first protocol ID
+            fetch('http://localhost:3001/api/protocols?limit=1', {
+                headers: {
+                    'Authorization': Bearer 
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const protocolId = data.protocols[0].id;
+                
+                // Test bookmark endpoint
+                return fetch(http://localhost:3001/api/protocols//bookmark, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': Bearer ,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(HTTP error! Status: );
+                }
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('bookmarkResult').innerText = 'Bookmark API call successful: ' + JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                document.getElementById('bookmarkResult').innerText = 'Bookmark API call failed: ' + error.message;
+            });
+        }
+
+        window.onload = function() {
+            checkToken();
+        };
+    </script>
+</head>
+<body>
+    <h1>Authentication Debug</h1>
+    <button onclick="checkToken()">Check Token</button>
+    <button onclick="testEndpoint()">Test API Endpoint</button>
+    <button onclick="testBookmarkEndpoint()">Test Bookmark Endpoint</button>
+    
+    <h2>Token Status:</h2>
+    <div id="tokenStatus">Checking...</div>
+    
+    <h2>Token Information:</h2>
+    <pre id="tokenInfo"></pre>
+    
+    <h2>API Test Result:</h2>
+    <pre id="apiResult"></pre>
+    
+    <h2>Bookmark Test Result:</h2>
+    <pre id="bookmarkResult"></pre>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
-import { StarIcon } from './icons';
+import { StarOutlineIcon } from './icons';
 
 // API URL configuration
 const API_URL = process.env.REACT_APP_API_URL || 
@@ -30,6 +30,8 @@ const ProtocolLibrary = ({
   const [sortDirection, setSortDirection] = useState('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [selectedProtocol, setSelectedProtocol] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   
   // Fetch protocols
   const fetchProtocols = useCallback(async () => {
@@ -112,9 +114,30 @@ const ProtocolLibrary = ({
   };
   
   // Handle protocol selection
-  const handleProtocolSelect = (protocolId) => {
-    if (onProtocolSelect) {
-      onProtocolSelect(protocolId);
+  const handleProtocolSelect = async (protocolId) => {
+    try {
+      // Fetch the protocol details
+      const response = await fetch(`${API_URL}/api/protocols/${protocolId}`, {
+        headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to load protocol details');
+      }
+      
+      const protocol = await response.json();
+      setSelectedProtocol(protocol);
+      setShowDetailsModal(true);
+      
+      // Call the parent's onProtocolSelect if provided
+      if (onProtocolSelect) {
+        onProtocolSelect(protocolId);
+      }
+    } catch (err) {
+      setError(err.message);
+      if (onError) {
+        onError(err);
+      }
     }
   };
   
@@ -126,6 +149,139 @@ const ProtocolLibrary = ({
   
   // Change page
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+  
+  // Add a modal component for protocol details
+  const ProtocolDetailsModal = () => {
+    if (!selectedProtocol) return null;
+    
+    return (
+      <ModalOverlay onClick={() => setShowDetailsModal(false)}>
+        <ModalContent onClick={e => e.stopPropagation()}>
+          <ModalHeader>
+            <h2>{selectedProtocol.name}</h2>
+            <CloseButton onClick={() => setShowDetailsModal(false)}>×</CloseButton>
+          </ModalHeader>
+          <ModalBody>
+            <ProtocolDetail>
+              <Label>Category:</Label>
+              <Value>{selectedProtocol.category}</Value>
+            </ProtocolDetail>
+            <ProtocolDetail>
+              <Label>Author:</Label>
+              <Value>{typeof selectedProtocol.author === 'string' 
+                ? selectedProtocol.author 
+                : (selectedProtocol.author && selectedProtocol.author.displayName 
+                  ? selectedProtocol.author.displayName 
+                  : 'Unknown')}</Value>
+            </ProtocolDetail>
+            <ProtocolDetail>
+              <Label>Date Published:</Label>
+              <Value>{selectedProtocol.datePublished}</Value>
+            </ProtocolDetail>
+            <ProtocolDetail>
+              <Label>Rating:</Label>
+              <Value>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <StarOutlineIcon 
+                    style={{ 
+                      color: "#212121",
+                      fontSize: '1rem',
+                      marginRight: '0.25rem'
+                    }} 
+                  />
+                  <span>{parseFloat(selectedProtocol.rating || 0).toFixed(1)}/5</span>
+                </div>
+              </Value>
+            </ProtocolDetail>
+            <ProtocolDescription>
+              <h3>Description</h3>
+              <p>{selectedProtocol.description}</p>
+            </ProtocolDescription>
+            {/* Add more protocol details as needed */}
+          </ModalBody>
+        </ModalContent>
+      </ModalOverlay>
+    );
+  };
+  
+  // Add these styled components
+  const ModalOverlay = styled.div`
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  `;
+  
+  const ModalContent = styled.div`
+    background-color: white;
+    border-radius: 0.5rem;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  `;
+  
+  const ModalHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #eee;
+    
+    h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: #333;
+    }
+  `;
+  
+  const CloseButton = styled.button`
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    
+    &:hover {
+      color: #333;
+    }
+  `;
+  
+  const ModalBody = styled.div`
+    padding: 1.5rem;
+  `;
+  
+  const ProtocolDetail = styled.div`
+    display: flex;
+    margin-bottom: 1rem;
+  `;
+  
+  const Label = styled.div`
+    font-weight: bold;
+    width: 150px;
+    color: #666;
+  `;
+  
+  const Value = styled.div`
+    flex: 1;
+  `;
+  
+  const ProtocolDescription = styled.div`
+    margin-top: 1.5rem;
+    
+    h3 {
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+      color: #333;
+    }
+  `;
   
   return (
     <Container>
@@ -306,6 +462,10 @@ const ProtocolLibrary = ({
             </Pagination>
           </PaginationContainer>
         </>
+      )}
+      
+      {showDetailsModal && (
+        <ProtocolDetailsModal />
       )}
     </Container>
   );

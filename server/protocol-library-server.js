@@ -28,25 +28,57 @@ app.use('/api/', apiLimiter);
 // Initialize adapters based on environment variables
 const initializeAdapters = async () => {
   try {
-    // Initialize database adapter
-    const dbType = process.env.DB_ADAPTER || 'inmemory';
-    const dbOptions = {
-      protocolsFilePath: path.join(__dirname, 'data/generated-protocols.json')
-    };
+    // Determine which database adapter to use
+    const dbType = process.env.DB_TYPE || 'postgresql'; // Default to PostgreSQL
     
-    const dbAdapter = adapterFactory.createDatabaseAdapter(dbType, dbOptions);
+    // Create database adapter
+    switch (dbType.toLowerCase()) {
+      case 'inmemory':
+        console.log('Using in-memory database');
+        const InMemoryDatabaseAdapter = require('./adapters/InMemoryDatabaseAdapter');
+        dbAdapter = new InMemoryDatabaseAdapter({
+          protocolsFilePath: path.join(__dirname, 'data/generated-protocols.json')
+        });
+        break;
+      case 'mongodb':
+        console.log('Using MongoDB database');
+        const MongoDBDatabaseAdapter = require('./adapters/MongoDBDatabaseAdapter');
+        dbAdapter = new MongoDBDatabaseAdapter();
+        break;
+      case 'postgresql':
+      default:
+        console.log('Using PostgreSQL database');
+        const PostgreSQLDatabaseAdapter = require('./adapters/PostgreSQLDatabaseAdapter');
+        dbAdapter = new PostgreSQLDatabaseAdapter();
+        break;
+    }
+    
+    // Initialize database adapter
     await dbAdapter.connect();
-    console.log(`Database adapter (${dbType}) initialized successfully`);
+    
+    // Determine which authentication adapter to use
+    const authType = process.env.AUTH_TYPE || 'jwt'; // Default to JWT
+    
+    // Create authentication adapter
+    switch (authType.toLowerCase()) {
+      case 'keycloak':
+        console.log('Using Keycloak authentication');
+        const KeycloakAuthAdapter = require('./adapters/KeycloakAuthAdapter');
+        authAdapter = new KeycloakAuthAdapter();
+        break;
+      case 'jwt':
+      default:
+        console.log('Using JWT authentication');
+        const JwtAuthAdapter = require('./adapters/JwtAuthAdapter');
+        authAdapter = new JwtAuthAdapter();
+        break;
+    }
     
     // Initialize authentication adapter
-    const authType = process.env.AUTH_ADAPTER || 'jwt';
-    const authOptions = {};
-    
-    const authAdapter = adapterFactory.createAuthAdapter(authType, authOptions);
     await authAdapter.initialize();
-    console.log(`Authentication adapter (${authType}) initialized successfully`);
     
-    return { dbAdapter, authAdapter };
+    console.log(`Database adapter (${dbType}) initialized successfully`);
+    console.log(`Authentication adapter (${authType}) initialized successfully`);
   } catch (error) {
     console.error('Error initializing adapters:', error);
     throw error;
@@ -166,12 +198,119 @@ const setupRoutes = (dbAdapter, authAdapter) => {
     try {
       const review = await dbAdapter.addReview(req.params.id, {
         ...req.body,
-        user: req.user.id
+        user_id: req.user.id
       });
       
       res.status(201).json(review);
     } catch (error) {
       console.error(`Error adding review to protocol ${req.params.id}:`, error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  // Get bookmarked protocols for the current user (protected)
+  app.get('/api/bookmarks', authAdapter.protect(), async (req, res) => {
+    try {
+      const protocols = await dbAdapter.getBookmarkedProtocols(req.user.id);
+      
+      res.json({
+        count: protocols.length,
+        protocols
+      });
+    } catch (error) {
+      console.error('Error getting bookmarked protocols:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  // Add a bookmark (protected)
+  app.post('/api/protocols/:id/bookmark', authAdapter.protect(), async (req, res) => {
+    try {
+      const bookmark = await dbAdapter.addBookmark(req.user.id, req.params.id);
+      
+      res.status(201).json(bookmark);
+    } catch (error) {
+      console.error(`Error bookmarking protocol ${req.params.id}:`, error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  // Remove a bookmark (protected)
+  app.delete('/api/protocols/:id/bookmark', authAdapter.protect(), async (req, res) => {
+    try {
+      const success = await dbAdapter.removeBookmark(req.user.id, req.params.id);
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Bookmark not found' });
+      }
+      
+      res.json({ message: 'Bookmark removed successfully' });
+    } catch (error) {
+      console.error(`Error removing bookmark for protocol ${req.params.id}:`, error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  // Get "Works for Me" protocols for the current user (protected)
+  app.get('/api/works-for-me', authAdapter.protect(), async (req, res) => {
+    try {
+      const protocols = await dbAdapter.getWorksForMeProtocols(req.user.id);
+      
+      res.json({
+        count: protocols.length,
+        protocols
+      });
+    } catch (error) {
+      console.error('Error getting "Works for Me" protocols:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  // Mark a protocol as "Works for Me" (protected)
+  app.post('/api/protocols/:id/works-for-me', authAdapter.protect(), async (req, res) => {
+    try {
+      // Add a review with works_for_me flag set to true
+      const review = await dbAdapter.addReview(req.params.id, {
+        user_id: req.user.id,
+        rating: req.body.rating || 5, // Default to 5 stars if not provided
+        comment: req.body.comment || '',
+        works_for_me: true
+      });
+      
+      res.status(201).json(review);
+    } catch (error) {
+      console.error(`Error marking protocol ${req.params.id} as "Works for Me":`, error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  // Remove "Works for Me" mark from a protocol (protected)
+  app.delete('/api/protocols/:id/works-for-me', authAdapter.protect(), async (req, res) => {
+    try {
+      // Find the review with works_for_me flag
+      const reviews = await dbAdapter.getReviews(req.params.id);
+      const userReview = reviews.find(r => r.user_id === req.user.id && r.works_for_me);
+      
+      if (!userReview) {
+        return res.status(404).json({ message: 'Works for me mark not found' });
+      }
+      
+      // Delete the review
+      const success = await dbAdapter.deleteReview(userReview.id);
+      
+      if (!success) {
+        return res.status(404).json({ message: 'Review not found' });
+      }
+      
+      // Get updated protocol to return the new works_for_me count
+      const protocol = await dbAdapter.getProtocolById(req.params.id);
+      
+      res.json({ 
+        message: 'Works for me mark removed successfully',
+        worksForMeCount: protocol.worksForMeCount || 0
+      });
+    } catch (error) {
+      console.error(`Error removing "Works for Me" mark from protocol ${req.params.id}:`, error);
       res.status(500).json({ message: 'Server error' });
     }
   });

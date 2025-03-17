@@ -11,4 +11,6 @@ $env:AUTH_ADAPTER = "jwt"
 $env:PORT = 3001
 
 # Run the server
+# Change to the server directory and run the script from there
+cd $PSScriptRoot
 node protocol-library-server.js 

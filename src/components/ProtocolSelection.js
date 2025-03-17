@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
@@ -16,13 +16,20 @@ import {
     CheckCircleIcon,
     TabIcon
 } from './icons';
-import { AuthContext } from '../contexts/AuthContext';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
+// Add debug logging
+console.log('ProtocolSelection component loaded - No authentication required');
+
 const ProtocolSelection = () => {
     const navigate = useNavigate();
-    const { isAuthenticated } = useContext(AuthContext);
+    
+    // Set default values for authentication-related state
+    const isAuthenticated = true; // Always treat as authenticated
+    const user = { id: 'guest-user', username: 'Guest', role: 'user' }; // Default guest user
+    const token = 'guest-token'; // Default token for API calls
+    
     const [protocols, setProtocols] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -37,53 +44,57 @@ const ProtocolSelection = () => {
     // Function to fetch user's bookmarked protocols
     const fetchBookmarkedProtocols = useCallback(async () => {
         try {
-            // Get token from localStorage
-            const token = localStorage.getItem('token');
-            if (!token) return;
+            // Get bookmarked protocols from localStorage
+            const storedBookmarks = localStorage.getItem('bookmarkedProtocols');
+            if (!storedBookmarks) {
+                // If no bookmarks, just clear the bookmarked protocols
+                setBookmarkedProtocols([]);
+                setBookmarkedProtocolIds([]);
+                return;
+            }
             
-            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/users/me/bookmarks`;
-            const response = await fetch(apiUrl, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            // Parse the stored bookmarks
+            const bookmarkedIds = JSON.parse(storedBookmarks);
+            
+            // Fetch the full protocol details for each bookmarked ID
+            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols`;
+            const response = await fetch(apiUrl);
             
             if (!response.ok) {
-                throw new Error('Failed to fetch bookmarked protocols');
+                throw new Error('Failed to fetch protocols');
             }
             
             const data = await response.json();
-            // Extract protocol IDs from the response
-            const bookmarkedIds = data.map(protocol => protocol.id);
-            setBookmarkedProtocols(data);
+            const allProtocols = data.protocols || data;
+            
+            // Filter to get only the bookmarked protocols
+            const bookmarkedProtos = allProtocols.filter(protocol => bookmarkedIds.includes(protocol.id));
+            
+            setBookmarkedProtocols(bookmarkedProtos);
             setBookmarkedProtocolIds(bookmarkedIds);
         } catch (err) {
             console.error('Error fetching bookmarked protocols:', err);
+            // Don't show an error to the user, just log it
         }
     }, []);
     
     // Function to fetch user's "Works for Me" protocols
     const fetchWorksForMeProtocols = useCallback(async () => {
         try {
-            // Get token from localStorage
-            const token = localStorage.getItem('token');
-            if (!token) return;
-            
-            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/users/me/works-for-me`;
-            const response = await fetch(apiUrl, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to fetch "Works for Me" protocols');
+            // Get works-for-me protocols from localStorage
+            const storedWorksForMe = localStorage.getItem('worksForMeProtocols');
+            if (!storedWorksForMe) {
+                // If no works-for-me, just clear the works for me protocols
+                setWorksForMeProtocols([]);
+                return;
             }
             
-            const data = await response.json();
-            setWorksForMeProtocols(data);
+            // Parse the stored works-for-me
+            const worksForMeIds = JSON.parse(storedWorksForMe);
+            setWorksForMeProtocols(worksForMeIds);
         } catch (err) {
             console.error('Error fetching "Works for Me" protocols:', err);
+            // Don't show an error to the user, just log it
         }
     }, []);
     
@@ -101,35 +112,58 @@ const ProtocolSelection = () => {
             
             const data = await response.json();
             
+            // Check if the response has the expected structure
+            const protocolsArray = data.protocols || data;
+            
+            if (!Array.isArray(protocolsArray)) {
+                console.error('Unexpected API response format:', data);
+                throw new Error('Unexpected API response format');
+            }
+            
             // Ensure each protocol has a worksForMeCount field
-            const protocolsWithWorksForMe = data.map(protocol => ({
+            const protocolsWithWorksForMe = protocolsArray.map(protocol => ({
                 ...protocol,
                 worksForMeCount: protocol.worksForMeCount || 0,
                 worksForMeUsers: protocol.worksForMeUsers || []
             }));
             
             setProtocols(protocolsWithWorksForMe);
+            // Clear any previous errors when successful
+            setError(null);
         } catch (err) {
             console.error('Error fetching protocols:', err);
-            setError('Failed to load protocols. Please try again later.');
+            // Only set error if we don't already have protocols loaded
+            if (protocols.length === 0) {
+                setError('Failed to load protocols. Please try again later.');
+            } else {
+                // If we already have protocols, just log the error but don't show it to the user
+                console.warn('Error refreshing protocols, using previously loaded data');
+            }
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [protocols.length]);
     
     // Fetch protocols from the API
     useEffect(() => {
         fetchProtocols();
         
-        // If user is authenticated, fetch their bookmarked protocols
-        if (isAuthenticated) {
-            fetchBookmarkedProtocols();
-            fetchWorksForMeProtocols();
+        // Initialize local storage for bookmarks and works-for-me if not already set
+        if (!localStorage.getItem('bookmarkedProtocols')) {
+            localStorage.setItem('bookmarkedProtocols', JSON.stringify([]));
         }
+        
+        if (!localStorage.getItem('worksForMeProtocols')) {
+            localStorage.setItem('worksForMeProtocols', JSON.stringify([]));
+        }
+        
+        // Fetch bookmarked and works-for-me protocols
+        fetchBookmarkedProtocols();
+        fetchWorksForMeProtocols();
         
         // No polling interval anymore - we'll fetch on filter changes instead
         return () => {}; // Empty cleanup function
-    }, [isAuthenticated, fetchWorksForMeProtocols, fetchBookmarkedProtocols, fetchProtocols]);
+    }, [fetchWorksForMeProtocols, fetchBookmarkedProtocols, fetchProtocols]);
     
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
@@ -831,11 +865,8 @@ const ProtocolSelection = () => {
     const handleWorksForMe = async (e, protocolId) => {
         e.stopPropagation(); // Prevent triggering the row click
         
-        // Check if user is authenticated
-        if (!isAuthenticated) {
-            alert('Please log in to mark protocols as "Works for me"');
-            return;
-        }
+        // Add debug logging
+        console.log('handleWorksForMe - Protocol ID:', protocolId);
         
         try {
             // Find the protocol in the list
@@ -851,7 +882,11 @@ const ProtocolSelection = () => {
             
             if (hasMarked) {
                 // Remove the mark locally
-                setWorksForMeProtocols(prev => prev.filter(id => id !== protocolId));
+                const updatedWorksForMe = worksForMeProtocols.filter(id => id !== protocolId);
+                setWorksForMeProtocols(updatedWorksForMe);
+                
+                // Save to localStorage
+                localStorage.setItem('worksForMeProtocols', JSON.stringify(updatedWorksForMe));
                 
                 // Decrease the count locally
                 protocol.worksForMeCount = Math.max(0, (protocol.worksForMeCount || 1) - 1);
@@ -860,30 +895,14 @@ const ProtocolSelection = () => {
                 updatedProtocols[protocolIndex] = protocol;
                 setProtocols(updatedProtocols);
                 
-                // Make API call to update the server
-                const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/remove`;
-                const response = await fetch(apiUrl, { 
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Works for me removed successfully:', data);
-                    
-                    // Update the count with the server value
-                    protocol.worksForMeCount = data.worksForMeCount;
-                    updatedProtocols[protocolIndex] = protocol;
-                    setProtocols(updatedProtocols);
-                    
-                    // Trigger an immediate fetch to update all protocols
-                    fetchProtocols();
-                }
+                console.log('Works for me removed successfully');
             } else {
                 // Add the mark locally
-                setWorksForMeProtocols(prev => [...prev, protocolId]);
+                const updatedWorksForMe = [...worksForMeProtocols, protocolId];
+                setWorksForMeProtocols(updatedWorksForMe);
+                
+                // Save to localStorage
+                localStorage.setItem('worksForMeProtocols', JSON.stringify(updatedWorksForMe));
                 
                 // Increase the count locally
                 protocol.worksForMeCount = (protocol.worksForMeCount || 0) + 1;
@@ -892,27 +911,7 @@ const ProtocolSelection = () => {
                 updatedProtocols[protocolIndex] = protocol;
                 setProtocols(updatedProtocols);
                 
-                // Make API call to update the server
-                const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/protocols/${protocolId}/works-for-me/add`;
-                const response = await fetch(apiUrl, { 
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('Works for me added successfully:', data);
-                    
-                    // Update the count with the server value
-                    protocol.worksForMeCount = data.worksForMeCount;
-                    updatedProtocols[protocolIndex] = protocol;
-                    setProtocols(updatedProtocols);
-                    
-                    // Trigger an immediate fetch to update all protocols
-                    fetchProtocols();
-                }
+                console.log('Works for me added successfully');
             }
         } catch (err) {
             console.error('Error updating "Works for me" status:', err);
@@ -924,55 +923,46 @@ const ProtocolSelection = () => {
     const handleBookmarkClick = async (e, protocolId) => {
         e.stopPropagation(); // Prevent triggering the row click
         
-        // Check if user is authenticated
-        if (!isAuthenticated) {
-            alert('Please log in to bookmark protocols');
-            return;
-        }
+        // Add debug logging
+        console.log('handleBookmarkClick - Protocol ID:', protocolId);
         
         try {
-            // Get token from localStorage
-            const token = localStorage.getItem('token');
-            if (!token) {
-                alert('Please log in to bookmark protocols');
-                return;
-            }
-            
             // Check if protocol is already bookmarked
-            const isBookmarked = bookmarkedProtocols.includes(protocolId);
+            const isBookmarked = bookmarkedProtocolIds.includes(protocolId);
             
-            // Construct API URL based on whether we're adding or removing the bookmark
-            const apiUrl = `${window.location.protocol}//${window.location.hostname}:3001/api/users/me/bookmarks/${protocolId}`;
-            
-            console.log(`${isBookmarked ? 'Removing' : 'Adding'} bookmark for protocol: ${protocolId}`);
-            
-            const response = await fetch(apiUrl, {
-                method: isBookmarked ? 'DELETE' : 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            const responseData = await response.json();
-            
-            if (!response.ok) {
-                console.error('Bookmark operation failed:', responseData);
-                throw new Error(`Failed to ${isBookmarked ? 'remove' : 'add'} bookmark: ${responseData.message || 'Unknown error'}`);
-            }
-            
-            console.log('Bookmark operation successful:', responseData);
-            
-            // Update local state
             if (isBookmarked) {
-                setBookmarkedProtocols(prev => prev.filter(id => id !== protocolId));
-                console.log(`Removed ${protocolId} from bookmarkedProtocols state`);
+                // Remove from bookmarks locally
+                const updatedBookmarkIds = bookmarkedProtocolIds.filter(id => id !== protocolId);
+                setBookmarkedProtocolIds(updatedBookmarkIds);
+                
+                // Update the bookmarked protocols list
+                const updatedBookmarks = bookmarkedProtocols.filter(p => p.id !== protocolId);
+                setBookmarkedProtocols(updatedBookmarks);
+                
+                // Save to localStorage
+                localStorage.setItem('bookmarkedProtocols', JSON.stringify(updatedBookmarkIds));
+                
+                console.log('Bookmark removed successfully');
             } else {
-                setBookmarkedProtocols(prev => [...prev, protocolId]);
-                console.log(`Added ${protocolId} to bookmarkedProtocols state`);
+                // Find the protocol in the list
+                const protocol = protocols.find(p => p.id === protocolId);
+                if (!protocol) return;
+                
+                // Add to bookmarks locally
+                const updatedBookmarkIds = [...bookmarkedProtocolIds, protocolId];
+                setBookmarkedProtocolIds(updatedBookmarkIds);
+                
+                // Update the bookmarked protocols list
+                setBookmarkedProtocols([...bookmarkedProtocols, protocol]);
+                
+                // Save to localStorage
+                localStorage.setItem('bookmarkedProtocols', JSON.stringify(updatedBookmarkIds));
+                
+                console.log('Bookmark added successfully');
             }
         } catch (err) {
             console.error('Error updating bookmark status:', err);
-            alert(`Error: ${err.message}`);
+            // Just log the error instead of showing an alert
         }
     };
 
@@ -1332,7 +1322,7 @@ const ProtocolSelection = () => {
                                                                         <span style={{ color: '#212121', marginLeft: '3px' }}>{protocol.worksForMeCount} people</span>
                                                                     </div>
                                                                 )}
-                                                                {selectedFilters.bookmarked && bookmarkedProtocols.includes(protocol.id) && (
+                                                                {selectedFilters.bookmarked && bookmarkedProtocolIds.includes(protocol.id) && (
                                                                     <div style={{ display: 'flex', flexDirection: 'row', marginRight: '15px', marginBottom: '8px' }}>
                                                                         <BookmarkIcon size={0.5} color="#5A8DEE" style={{ marginRight: '3px' }} />
                                                                         <span style={{ color: '#5A8DEE' }}>Bookmarked</span>
@@ -1502,12 +1492,12 @@ const ProtocolSelection = () => {
                             <ActionButton 
                                 onClick={(e) => handleBookmarkClick(e, selectedProtocol.id)}
                                 style={{
-                                    color: bookmarkedProtocols.includes(selectedProtocol.id) ? '#5A8DEE' : '#757575'
+                                    color: bookmarkedProtocolIds.includes(selectedProtocol.id) ? '#5A8DEE' : '#757575'
                                 }}
                             >
                                 <BookmarkIcon 
                                     size={1.2} 
-                                    color={bookmarkedProtocols.includes(selectedProtocol.id) ? '#5A8DEE' : 'currentColor'} 
+                                    color={bookmarkedProtocolIds.includes(selectedProtocol.id) ? '#5A8DEE' : 'currentColor'} 
                                 />
                             </ActionButton>
                             <ActionButton onClick={(e) => handleStarClick(e, selectedProtocol.id)}>

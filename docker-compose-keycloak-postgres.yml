@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres:14
+    container_name: vitale-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: vitale
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - vitale-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0.5
+    container_name: vitale-keycloak
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: localhost
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    command: start-dev
+    networks:
+      - vitale-network
+
+networks:
+  vitale-network:
+    driver: bridge
+
+volumes:
+  postgres_data: 

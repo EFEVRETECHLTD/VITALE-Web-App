@@ -5,6 +5,32 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  background-color: #f9f9f9;
+}
+
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Hide any sidebar if present */
+.sidebar-container {
+  display: none !important;
+}
+
+/* Ensure main content takes full width */
+.main-content {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .protocol-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 .App-logo {

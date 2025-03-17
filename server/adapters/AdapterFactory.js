@@ -23,6 +23,9 @@ class AdapterFactory {
         case 'inmemory':
           AdapterClass = require('./InMemoryDatabaseAdapter');
           break;
+        case 'postgresql':
+          AdapterClass = require('./PostgreSQLDatabaseAdapter');
+          break;
         // Add more adapter types as needed
         default:
           throw new Error(`Unknown database adapter type: ${type}`);
@@ -49,6 +52,9 @@ class AdapterFactory {
       switch (type.toLowerCase()) {
         case 'jwt':
           AdapterClass = require('./JwtAuthAdapter');
+          break;
+        case 'keycloak':
+          AdapterClass = require('./KeycloakAuthAdapter');
           break;
         // Add more adapter types as needed
         default:
