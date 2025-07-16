@@ -117,11 +117,3 @@ The application uses styled-components with a robust theme system. All theme pro
 1. Create a feature branch from the dev branch
 2. Make your changes
 3. Submit a pull request to the dev branch
-
-## License
-
-This software is proprietary and confidential. Unauthorized copying, distribution, modification, public display, or public performance of this software is strictly prohibited. All rights reserved.
-
-See the [LICENSE](./LICENSE) file for detailed terms and conditions.
-
-Copyright 2025 EFEVRE TECH LTD. All rights reserved.
